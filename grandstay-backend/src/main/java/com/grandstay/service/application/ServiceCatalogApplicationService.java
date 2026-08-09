@@ -1,0 +1,10 @@
+package com.grandstay.service.application;
+import java.math.BigDecimal;import java.time.Clock;import java.util.*;import com.grandstay.service.domain.HotelService;import com.grandstay.service.infrastructure.HotelServiceRepository;import com.grandstay.shared.dto.EntityDtos.ServiceDto;import com.grandstay.shared.exception.BusinessException;import com.grandstay.shared.infrastructure.mapping.EntityMapper;import org.springframework.data.domain.*;import org.springframework.stereotype.Service;import org.springframework.transaction.annotation.Transactional;
+@Service public class ServiceCatalogApplicationService {private final HotelServiceRepository repo;private final EntityMapper mapper;private final Clock clock;public ServiceCatalogApplicationService(HotelServiceRepository r,EntityMapper m,Clock c){repo=r;mapper=m;clock=c;}
+ @Transactional(readOnly=true) public Page<ServiceDto> list(Pageable p,boolean includeInactive){return (includeInactive?repo.findAllByDeletedAtIsNull(p):repo.findAllByActiveTrueAndDeletedAtIsNull(p)).map(mapper::toDto);}
+ @Transactional public ServiceDto create(Command c){HotelService s=new HotelService();apply(s,c);return mapper.toDto(repo.save(s));}
+ @Transactional public ServiceDto update(UUID id,Command c){HotelService s=repo.findById(id).filter(x->x.getDeletedAt()==null).orElseThrow(()->BusinessException.notFound("Service",id));apply(s,c);return mapper.toDto(repo.save(s));}
+ @Transactional public void delete(UUID id){HotelService s=repo.findById(id).filter(x->x.getDeletedAt()==null).orElseThrow(()->BusinessException.notFound("Service",id));s.setActive(false);s.setDeletedAt(clock.instant());repo.save(s);}
+ private void apply(HotelService s,Command c){s.setCode(c.code().toUpperCase(Locale.ROOT));s.setName(c.name());s.setCategory(c.category());s.setDescription(c.description());s.setUnit(c.unit());s.setUnitPrice(c.unitPrice());s.setTaxRate(c.taxRate());s.setCurrency(c.currency().toUpperCase(Locale.ROOT));s.setActive(c.active());}
+ public record Command(String code,String name,String category,String description,String unit,BigDecimal unitPrice,BigDecimal taxRate,String currency,boolean active){}
+}

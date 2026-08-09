@@ -1,0 +1,3 @@
+package com.grandstay.dashboard.api;
+import java.time.Instant;import com.grandstay.dashboard.application.DashboardApplicationService;import io.swagger.v3.oas.annotations.tags.Tag;import org.springframework.security.access.prepost.PreAuthorize;import org.springframework.web.bind.annotation.*;
+@RestController @RequestMapping("/api/v1/dashboard") @Tag(name="Dashboard") @PreAuthorize("hasAuthority('report:read')") public class DashboardController {private final DashboardApplicationService service;public DashboardController(DashboardApplicationService s){service=s;}@GetMapping public DashboardApplicationService.DashboardView get(@RequestParam(required=false) Instant from,@RequestParam(required=false) Instant to){return service.dashboard(from,to);}}

@@ -1,0 +1,12 @@
+.env
+.idea/
+.vscode/
+*.iml
+*.log
+**/target/
+**/node_modules/
+**/dist/
+**/.classpath
+**/.project
+**/.settings/
+grandstay-postgres-data/

@@ -1,0 +1,91 @@
+name: grandstay
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-grandstay}
+      POSTGRES_USER: ${POSTGRES_USER:-grandstay}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-grandstay_local_only}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - grandstay-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+    restart: unless-stopped
+    networks:
+      - grandstay-network
+
+  backend:
+    build:
+      context: ./grandstay-backend
+      dockerfile: Dockerfile
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-grandstay}
+      DB_USERNAME: ${POSTGRES_USER:-grandstay}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-grandstay_local_only}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:3000,http://localhost:5173}
+      JWT_SECRET: ${JWT_SECRET:-local-compose-secret-change-me-at-least-32-bytes}
+      ADMIN_BOOTSTRAP_ENABLED: ${ADMIN_BOOTSTRAP_ENABLED:-false}
+      ADMIN_BOOTSTRAP_USERNAME: ${ADMIN_BOOTSTRAP_USERNAME:-}
+      ADMIN_BOOTSTRAP_EMAIL: ${ADMIN_BOOTSTRAP_EMAIL:-}
+      ADMIN_BOOTSTRAP_FULL_NAME: ${ADMIN_BOOTSTRAP_FULL_NAME:-GrandStay Administrator}
+      ADMIN_BOOTSTRAP_PASSWORD: ${ADMIN_BOOTSTRAP_PASSWORD:-}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      VNPAY_ENABLED: ${VNPAY_ENABLED:-false}
+      VNPAY_PAYMENT_URL: ${VNPAY_PAYMENT_URL:-https://sandbox.vnpayment.vn/paymentv2/vpcpay.html}
+      VNPAY_API_URL: ${VNPAY_API_URL:-https://sandbox.vnpayment.vn/merchant_webapi/api/transaction}
+      VNPAY_TMN_CODE: ${VNPAY_TMN_CODE:-}
+      VNPAY_HASH_SECRET: ${VNPAY_HASH_SECRET:-}
+      VNPAY_RETURN_URL: ${VNPAY_RETURN_URL:-http://localhost:8080/api/v1/payments/vnpay/return}
+      VNPAY_IPN_URL: ${VNPAY_IPN_URL:-}
+      VNPAY_FRONTEND_RESULT_URL: ${VNPAY_FRONTEND_RESULT_URL:-http://localhost:3000/payment/vnpay/result}
+      VNPAY_QUERY_IP_ADDRESS: ${VNPAY_QUERY_IP_ADDRESS:-127.0.0.1}
+      VNPAY_EXPIRATION: ${VNPAY_EXPIRATION:-15m}
+      CATALOG_BOOTSTRAP_ENABLED: ${CATALOG_BOOTSTRAP_ENABLED:-true}
+      OPENAPI_ENABLED: ${OPENAPI_ENABLED:-true}
+      LOG_FORMAT: logstash
+    ports:
+      - "${BACKEND_PORT:-8080}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health/readiness | grep -q '\"status\":\"UP\"'"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 40s
+    restart: unless-stopped
+    init: true
+    networks:
+      - grandstay-network
+
+  frontend:
+    build:
+      context: ./grandstay-frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+    ports:
+      - "${FRONTEND_PORT:-3000}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+    init: true
+    networks:
+      - grandstay-network
+
+volumes:
+  grandstay-postgres-data:
+
+networks:
+  grandstay-network:
+    driver: bridge

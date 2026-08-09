@@ -1,0 +1,19 @@
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5433/grandstay_test}
+    username: ${DB_USERNAME:grandstay_test}
+    password: ${DB_PASSWORD:grandstay_test}
+  jpa:
+    properties:
+      hibernate:
+        generate_statistics: false
+
+grandstay:
+  security:
+    jwt:
+      secret: test-secret-for-grandstay-security-at-least-32-bytes
+
+logging:
+  structured:
+    format:
+      console: ""

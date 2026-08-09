@@ -1,0 +1,2 @@
+package com.grandstay.service.infrastructure; import java.util.*; import com.grandstay.service.domain.HotelService; import org.springframework.data.domain.*; import org.springframework.data.jpa.repository.JpaRepository;
+public interface HotelServiceRepository extends JpaRepository<HotelService,UUID> { Page<HotelService> findAllByActiveTrueAndDeletedAtIsNull(Pageable pageable); Page<HotelService> findAllByDeletedAtIsNull(Pageable pageable); Optional<HotelService> findByCodeAndDeletedAtIsNull(String code); }
