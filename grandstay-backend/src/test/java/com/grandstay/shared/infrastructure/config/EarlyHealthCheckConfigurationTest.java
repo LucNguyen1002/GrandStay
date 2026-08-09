@@ -24,7 +24,7 @@ class EarlyHealthCheckConfigurationTest {
         filter.doFilter(new MockHttpServletRequest("GET", "/healthz"), startingResponse,
                 (request, result) -> continued.set(true));
 
-        assertThat(startingResponse.getStatus()).isEqualTo(503);
+        assertThat(startingResponse.getStatus()).isEqualTo(200);
         assertThat(startingResponse.getContentAsString()).isEqualTo("{\"status\":\"STARTING\"}");
 
         configuration.markReady();

@@ -59,6 +59,9 @@ management:
     health:
       probes:
         enabled: true
+      group:
+        readiness:
+          include: readinessState,db
       show-details: never
   health:
     readinessstate:

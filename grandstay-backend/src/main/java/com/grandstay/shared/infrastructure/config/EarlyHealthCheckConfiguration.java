@@ -39,7 +39,12 @@ public class EarlyHealthCheckConfiguration {
             ((HttpServletResponse) response).setStatus(HttpServletResponse.SC_OK);
             response.getWriter().write("{\"status\":\"UP\"}");
         } else {
-            ((HttpServletResponse) response).setStatus(HttpServletResponse.SC_SERVICE_UNAVAILABLE);
+            // Render restarts an instance after consecutive non-2xx health checks. On the
+            // free plan this application can need a few minutes to finish initializing JPA,
+            // so keep the lightweight liveness endpoint healthy while exposing the actual
+            // startup state in the response body. Spring Actuator readiness remains the
+            // dependency-aware probe for callers that need full application readiness.
+            ((HttpServletResponse) response).setStatus(HttpServletResponse.SC_OK);
             response.getWriter().write("{\"status\":\"STARTING\"}");
         }
     }
