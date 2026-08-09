@@ -12,4 +12,4 @@ WORKDIR /app
 COPY --from=build --chown=grandstay:grandstay /workspace/target/grandstay-backend-*.jar app.jar
 USER grandstay
 EXPOSE 10000
-ENTRYPOINT ["java", "-Xms32m", "-Xmx160m", "-XX:MaxMetaspaceSize=96m", "-XX:ReservedCodeCacheSize=32m", "-XX:MaxDirectMemorySize=32m", "-Xss512k", "-XX:+UseSerialGC", "-XX:+ExitOnOutOfMemoryError", "-Djava.security.egd=file:/dev/urandom", "-jar", "/app/app.jar"]
+ENTRYPOINT ["java", "-Xms32m", "-Xmx160m", "-XX:MaxMetaspaceSize=160m", "-XX:ReservedCodeCacheSize=32m", "-XX:MaxDirectMemorySize=32m", "-Xss512k", "-XX:+UseSerialGC", "-XX:+ExitOnOutOfMemoryError", "-Djava.security.egd=file:/dev/urandom", "-jar", "/app/app.jar"]
