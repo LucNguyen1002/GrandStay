@@ -39,9 +39,9 @@ services:
       - key: SPRING_JMX_ENABLED
         value: "false"
       - key: CATALOG_BOOTSTRAP_ENABLED
-        value: "true"
+        value: "false"
       - key: ADMIN_BOOTSTRAP_ENABLED
-        value: "true"
+        value: "false"
       - key: ADMIN_BOOTSTRAP_USERNAME
         value: admin
       - key: ADMIN_BOOTSTRAP_EMAIL
