@@ -7,7 +7,7 @@ services:
     branch: main
     dockerfilePath: ./grandstay-backend/Dockerfile
     dockerContext: ./grandstay-backend
-    healthCheckPath: /actuator/health/readiness
+    healthCheckPath: /healthz
     autoDeployTrigger: commit
     envVars:
       - key: SPRING_PROFILES_ACTIVE
