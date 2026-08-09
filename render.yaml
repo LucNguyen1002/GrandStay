@@ -1,0 +1,67 @@
+services:
+  - type: web
+    name: grandstay-api-lucnguyen1002
+    runtime: docker
+    plan: free
+    region: singapore
+    branch: main
+    dockerfilePath: ./grandstay-backend/Dockerfile
+    dockerContext: ./grandstay-backend
+    healthCheckPath: /actuator/health/readiness
+    autoDeployTrigger: commit
+    maxShutdownDelaySeconds: 30
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod
+      - key: SERVER_PORT
+        value: "10000"
+      - key: DB_URL
+        sync: false
+      - key: DB_USERNAME
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: DB_POOL_MIN_IDLE
+        value: "0"
+      - key: DB_POOL_MAX_SIZE
+        value: "5"
+      - key: ALLOWED_ORIGINS
+        value: https://grandstay-frontend.vercel.app,http://localhost:3000
+      - key: JWT_SECRET
+        generateValue: true
+      - key: OPENAPI_ENABLED
+        value: "true"
+      - key: CATALOG_BOOTSTRAP_ENABLED
+        value: "true"
+      - key: ADMIN_BOOTSTRAP_ENABLED
+        value: "true"
+      - key: ADMIN_BOOTSTRAP_USERNAME
+        value: admin
+      - key: ADMIN_BOOTSTRAP_EMAIL
+        sync: false
+      - key: ADMIN_BOOTSTRAP_FULL_NAME
+        value: GrandStay Administrator
+      - key: ADMIN_BOOTSTRAP_PASSWORD
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: VNPAY_ENABLED
+        value: "true"
+      - key: VNPAY_PAYMENT_URL
+        value: https://sandbox.vnpayment.vn/paymentv2/vpcpay.html
+      - key: VNPAY_API_URL
+        value: https://sandbox.vnpayment.vn/merchant_webapi/api/transaction
+      - key: VNPAY_TMN_CODE
+        sync: false
+      - key: VNPAY_HASH_SECRET
+        sync: false
+      - key: VNPAY_RETURN_URL
+        value: https://grandstay-api-lucnguyen1002.onrender.com/api/v1/payments/vnpay/return
+      - key: VNPAY_IPN_URL
+        value: https://grandstay-api-lucnguyen1002.onrender.com/api/v1/payments/vnpay/ipn
+      - key: VNPAY_FRONTEND_RESULT_URL
+        value: https://grandstay-frontend.vercel.app/payment/vnpay/result
+      - key: VNPAY_QUERY_IP_ADDRESS
+        value: 127.0.0.1
+      - key: VNPAY_EXPIRATION
+        value: 15m
