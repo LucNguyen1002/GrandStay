@@ -14,18 +14,27 @@ class EarlyHealthCheckConfigurationTest {
 
     @Test
     void respondsWithoutStartingTheDispatcherChain() throws Exception {
+        EarlyHealthCheckConfiguration configuration = new EarlyHealthCheckConfiguration();
         FilterRegistrationBean<Filter> registration =
-                new EarlyHealthCheckConfiguration().earlyHealthCheckFilter();
+                configuration.earlyHealthCheckFilter();
         Filter filter = registration.getFilter();
-        MockHttpServletResponse response = new MockHttpServletResponse();
         AtomicBoolean continued = new AtomicBoolean(false);
 
-        filter.doFilter(new MockHttpServletRequest("GET", "/healthz"), response,
+        MockHttpServletResponse startingResponse = new MockHttpServletResponse();
+        filter.doFilter(new MockHttpServletRequest("GET", "/healthz"), startingResponse,
                 (request, result) -> continued.set(true));
 
-        assertThat(response.getStatus()).isEqualTo(200);
-        assertThat(response.getContentType()).isEqualTo("application/json;charset=UTF-8");
-        assertThat(response.getContentAsString()).isEqualTo("{\"status\":\"UP\"}");
+        assertThat(startingResponse.getStatus()).isEqualTo(503);
+        assertThat(startingResponse.getContentAsString()).isEqualTo("{\"status\":\"STARTING\"}");
+
+        configuration.markReady();
+        MockHttpServletResponse readyResponse = new MockHttpServletResponse();
+        filter.doFilter(new MockHttpServletRequest("GET", "/healthz"), readyResponse,
+                (request, result) -> continued.set(true));
+
+        assertThat(readyResponse.getStatus()).isEqualTo(200);
+        assertThat(readyResponse.getContentType()).isEqualTo("application/json;charset=UTF-8");
+        assertThat(readyResponse.getContentAsString()).isEqualTo("{\"status\":\"UP\"}");
         assertThat(continued).isFalse();
         assertThat(registration.getUrlPatterns()).containsExactlyInAnyOrder("/", "/healthz");
     }
