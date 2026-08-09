@@ -19,7 +19,7 @@ public class EarlyHealthCheckConfiguration {
         FilterRegistrationBean<Filter> registration = new FilterRegistrationBean<>();
         registration.setName("earlyHealthCheckFilter");
         registration.setOrder(Ordered.HIGHEST_PRECEDENCE);
-        registration.addUrlPatterns("/healthz");
+        registration.addUrlPatterns("/", "/healthz");
         registration.setFilter(this::respondHealthy);
         return registration;
     }

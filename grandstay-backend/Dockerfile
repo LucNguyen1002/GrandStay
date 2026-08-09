@@ -11,5 +11,5 @@ RUN addgroup -S grandstay && adduser -S grandstay -G grandstay
 WORKDIR /app
 COPY --from=build --chown=grandstay:grandstay /workspace/target/grandstay-backend-*.jar app.jar
 USER grandstay
-EXPOSE 8080
+EXPOSE 10000
 ENTRYPOINT ["java", "-XX:InitialRAMPercentage=10.0", "-XX:MaxRAMPercentage=45.0", "-XX:MaxMetaspaceSize=128m", "-XX:ReservedCodeCacheSize=64m", "-Xss512k", "-XX:+UseSerialGC", "-XX:+ExitOnOutOfMemoryError", "-Djava.security.egd=file:/dev/urandom", "-jar", "/app/app.jar"]
