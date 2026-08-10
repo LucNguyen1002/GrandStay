@@ -50,8 +50,7 @@ export function GoogleSignInButton({ onCredential, onError, busy = false }: {
         auto_select: false,
         cancel_on_tap_outside: true,
         ux_mode: 'popup',
-        use_fedcm_for_button: true,
-        button_auto_select: false,
+        use_fedcm_for_button: false,
       })
       container.current.replaceChildren()
       window.google.accounts.id.renderButton(container.current, {
