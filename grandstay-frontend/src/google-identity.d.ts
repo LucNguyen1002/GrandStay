@@ -8,6 +8,9 @@ interface GoogleIdentityIdApi {
     callback: (response: GoogleCredentialResponse) => void
     auto_select?: boolean
     cancel_on_tap_outside?: boolean
+    ux_mode?: 'popup' | 'redirect'
+    use_fedcm_for_button?: boolean
+    button_auto_select?: boolean
   }): void
   renderButton(parent: HTMLElement, options: {
     type?: 'standard' | 'icon'
@@ -18,6 +21,7 @@ interface GoogleIdentityIdApi {
     logo_alignment?: 'left' | 'center'
     width?: number
     locale?: string
+    click_listener?: () => void
   }): void
 }
 

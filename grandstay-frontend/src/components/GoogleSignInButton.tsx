@@ -28,6 +28,7 @@ export function GoogleSignInButton({ onCredential, onError, busy = false }: {
   const container = useRef<HTMLDivElement>(null)
   const credentialHandler = useRef(onCredential)
   const errorHandler = useRef(onError)
+  const interactionTimer = useRef<number | null>(null)
   const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID?.trim()
 
   useEffect(() => { credentialHandler.current = onCredential }, [onCredential])
@@ -41,20 +42,36 @@ export function GoogleSignInButton({ onCredential, onError, busy = false }: {
       window.google.accounts.id.initialize({
         client_id: clientId,
         callback: response => {
+          if (interactionTimer.current !== null) window.clearTimeout(interactionTimer.current)
+          interactionTimer.current = null
           if (response.credential) credentialHandler.current(response.credential)
           else errorHandler.current('Google không trả về thông tin đăng nhập hợp lệ.')
         },
         auto_select: false,
         cancel_on_tap_outside: true,
+        ux_mode: 'popup',
+        use_fedcm_for_button: true,
+        button_auto_select: false,
       })
       container.current.replaceChildren()
       window.google.accounts.id.renderButton(container.current, {
         type: 'standard', theme: 'outline', size: 'large', text: 'continue_with',
         shape: 'rectangular', logo_alignment: 'left', width: Math.min(container.current.clientWidth, 400),
         locale: 'vi',
+        click_listener: () => {
+          errorHandler.current('')
+          if (interactionTimer.current !== null) window.clearTimeout(interactionTimer.current)
+          interactionTimer.current = window.setTimeout(() => {
+            errorHandler.current('Google chưa trả về thông tin đăng nhập. Hãy tải lại trang hoặc thử trong cửa sổ InPrivate.')
+          }, 30_000)
+        },
       })
     }).catch(error => active && errorHandler.current(error instanceof Error ? error.message : 'Không thể tải đăng nhập Google.'))
-    return () => { active = false }
+    return () => {
+      active = false
+      if (interactionTimer.current !== null) window.clearTimeout(interactionTimer.current)
+      interactionTimer.current = null
+    }
   }, [clientId])
 
   if (!clientId) {
