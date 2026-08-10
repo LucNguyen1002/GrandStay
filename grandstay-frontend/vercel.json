@@ -14,6 +14,10 @@
   ],
   "rewrites": [
     {
+      "source": "/backend-healthz",
+      "destination": "https://grandstay-api-lucnguyen1002.onrender.com/healthz"
+    },
+    {
       "source": "/api/:path*",
       "destination": "https://grandstay-api-lucnguyen1002.onrender.com/api/:path*"
     },
