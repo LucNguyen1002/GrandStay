@@ -96,18 +96,19 @@ public class BookingApplicationService {
                     .orElseThrow(() -> BusinessException.notFound("Room type", room.getRoomTypeId()));
             if (selection.adults() > roomType.getCapacityAdults()
                     || selection.children() > roomType.getCapacityChildren()) {
-                throw BusinessException.invalid("Guest count exceeds capacity of room " + room.getRoomNumber());
+                throw BusinessException.invalid("Số khách vượt quá sức chứa của phòng " + room.getRoomNumber());
             }
-            RatePlan ratePlan = ratePlanRepository.findById(selection.ratePlanId())
+            RatePlan requestedPlan = ratePlanRepository.findById(selection.ratePlanId())
                     .orElseThrow(() -> BusinessException.notFound("Rate plan", selection.ratePlanId()));
-            validateRatePlan(ratePlan, room, command, currency);
+            validateRatePlan(requestedPlan, room, command, currency);
             if (command.confirmImmediately()
                     && bookingRoomRepository.existsActiveOverlap(room.getId(), period, null)) {
                 throw BusinessException.conflict(ErrorCode.ROOM_NOT_AVAILABLE,
                         "Room " + room.getRoomNumber() + " is not available for the selected period");
             }
-            PricingService.Price price = pricingService.calculateRoomCharge(command.expectedCheckInAt(),
-                    command.expectedCheckOutAt(), ratePlan.getPricingUnit(), ratePlan.getRate());
+            PricedPlan pricedPlan = bestAvailablePlan(room, command, currency, requestedPlan);
+            RatePlan ratePlan = pricedPlan.plan();
+            PricingService.Price price = pricedPlan.price();
             if (price.quantity().compareTo(BigDecimal.valueOf(ratePlan.getMinStayUnits())) < 0) {
                 throw BusinessException.conflict(ErrorCode.RATE_PLAN_NOT_AVAILABLE,
                         "Minimum stay for rate plan is " + ratePlan.getMinStayUnits() + " " + ratePlan.getPricingUnit());
@@ -250,6 +251,29 @@ public class BookingApplicationService {
         }
     }
 
+    private PricedPlan bestAvailablePlan(Room room, CreateBooking command, String currency, RatePlan requested) {
+        return ratePlanRepository.findAllByRoomTypeIdAndActiveTrueAndDeletedAtIsNull(room.getRoomTypeId()).stream()
+                .filter(plan -> availableFor(plan, room, command, currency))
+                .map(plan -> new PricedPlan(plan, priceWithMinimumStay(plan, command)))
+                .min(java.util.Comparator.comparing(item -> item.price().amount()))
+                .orElseGet(() -> new PricedPlan(requested, priceWithMinimumStay(requested, command)));
+    }
+
+    private PricingService.Price priceWithMinimumStay(RatePlan plan, CreateBooking command) {
+        PricingService.Price calculated = pricingService.calculateRoomCharge(command.expectedCheckInAt(),
+                command.expectedCheckOutAt(), plan.getPricingUnit(), plan.getRate());
+        BigDecimal quantity = calculated.quantity().max(BigDecimal.valueOf(plan.getMinStayUnits()));
+        return new PricingService.Price(quantity, pricingService.money(plan.getRate().multiply(quantity)));
+    }
+
+    private boolean availableFor(RatePlan plan, Room room, CreateBooking command, String currency) {
+        LocalDate date = command.expectedCheckInAt().atZone(PricingService.HOTEL_ZONE).toLocalDate();
+        return plan.getDeletedAt() == null && plan.isActive() && plan.getRoomTypeId().equals(room.getRoomTypeId())
+                && plan.getCurrency().equalsIgnoreCase(currency)
+                && (plan.getValidFrom() == null || !date.isBefore(plan.getValidFrom()))
+                && (plan.getValidTo() == null || !date.isAfter(plan.getValidTo()));
+    }
+
     private BigDecimal applyPromotion(UUID promotionId, BigDecimal subtotal) {
         if (promotionId == null) return BigDecimal.ZERO.setScale(2);
         Promotion promotion = promotionRepository.findByIdForUpdate(promotionId)
@@ -312,4 +336,5 @@ public class BookingApplicationService {
     }
 
     private record RoomDraft(Room room, RatePlan plan, RoomSelection selection, PricingService.Price price) {}
+    private record PricedPlan(RatePlan plan, PricingService.Price price) {}
 }

@@ -51,13 +51,13 @@ public class SmallHotelCatalogBootstrapInitializer implements ApplicationRunner 
 
     private static final List<RoomTypeSeed> ROOM_TYPE_SEEDS = List.of(
             new RoomTypeSeed("STD", "Standard", "Phòng tiêu chuẩn gọn gàng cho khách công tác hoặc cặp đôi.",
-                    2, 0, "180000", "650000", "720000"),
+                    2, 0, "90000", "650000", "550000"),
             new RoomTypeSeed("SUP", "Superior", "Không gian rộng hơn, có bàn làm việc và phù hợp kỳ nghỉ linh hoạt.",
-                    2, 1, "220000", "820000", "900000"),
+                    2, 1, "110000", "780000", "680000"),
             new RoomTypeSeed("DLX", "Deluxe", "Phòng cao cấp có khu thư giãn, ưu tiên tầm nhìn và sự riêng tư.",
-                    2, 1, "300000", "1150000", "1250000"),
+                    2, 1, "140000", "980000", "850000"),
             new RoomTypeSeed("FAM", "Family", "Phòng gia đình cho nhóm nhỏ, tối ưu không gian và thời gian lưu trú dài.",
-                    4, 2, "350000", "1400000", "1550000"));
+                    4, 2, "170000", "1200000", "1050000"));
 
     private static final List<AmenitySeed> AMENITY_SEEDS = List.of(
             new AmenitySeed("WIFI", "Wi-Fi tốc độ cao", "Kết nối Internet trong phòng.", "wifi"),
@@ -204,7 +204,7 @@ public class SmallHotelCatalogBootstrapInitializer implements ApplicationRunner 
         rate.setPricingUnit(unit);
         rate.setRate(amount);
         rate.setCurrency(CURRENCY);
-        rate.setMinStayUnits(1);
+        rate.setMinStayUnits(unit == PricingUnit.HOURLY ? 2 : 1);
         rate.setRefundable(true);
         rate.setActive(true);
         return rate;

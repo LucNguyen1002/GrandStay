@@ -4,6 +4,7 @@ import java.time.LocalDate;
 
 import com.grandstay.shared.domain.ModelEnums.Gender;
 import com.grandstay.shared.domain.ModelEnums.IdentityType;
+import com.grandstay.shared.domain.ModelEnums;
 import com.grandstay.shared.domain.SoftDeletableEntity;
 import jakarta.persistence.*;
 import lombok.Getter;
@@ -24,5 +25,11 @@ public class Customer extends SoftDeletableEntity {
     @Enumerated(EnumType.STRING) @Column(name="identity_type", length=20) private IdentityType identityType;
     @Column(name="identity_ciphertext", columnDefinition="text") private String identityCiphertext;
     @Column(name="identity_hash", length=64) private String identityHash;
+    @Column(name="identity_last_four", length=4) private String identityLastFour;
+    @Enumerated(EnumType.STRING) @Column(name="identity_verification_status", nullable=false, length=20)
+    private ModelEnums.IdentityVerificationStatus identityVerificationStatus = ModelEnums.IdentityVerificationStatus.UNVERIFIED;
+    @Column(name="identity_verified_at") private java.time.Instant identityVerifiedAt;
+    @Column(name="identity_verified_by") private java.util.UUID identityVerifiedBy;
+    @Column(name="identity_rejection_reason", length=500) private String identityRejectionReason;
     @Column(length=1000) private String notes;
 }

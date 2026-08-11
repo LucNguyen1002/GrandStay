@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { SettingsPage } from './SettingsPage'
+import { I18nProvider } from '../i18n'
 
 const mocks = vi.hoisted(() => ({
   post: vi.fn(),
@@ -13,6 +14,7 @@ vi.mock('../auth/AuthProvider', () => ({
   useAuth: () => ({
     user: { username: 'admin', name: 'Administrator', roles: ['ADMIN'], permissions: ['user:write'] },
     logout: mocks.logout,
+    hasRole: (role: string) => role === 'ADMIN',
   }),
 }))
 
@@ -33,20 +35,20 @@ describe('SettingsPage password flow', () => {
 
   it('explains invalid password requirements and only submits a valid form', async () => {
     const queryClient = new QueryClient({ defaultOptions: { mutations: { retry: false } } })
-    render(<QueryClientProvider client={queryClient}><SettingsPage /></QueryClientProvider>)
+    render(<I18nProvider><QueryClientProvider client={queryClient}><SettingsPage /></QueryClientProvider></I18nProvider>)
     fireEvent.click(screen.getByRole('button', { name: 'Đổi mật khẩu' }))
 
-    const submit = screen.getByRole('button', { name: 'Cập nhật mật khẩu' })
+    const submit = screen.getByRole('button', { name: 'Lưu thay đổi' })
     const current = screen.getByLabelText('Mật khẩu hiện tại')
     const next = screen.getByLabelText('Mật khẩu mới')
-    const confirmation = screen.getByLabelText('Nhập lại mật khẩu mới')
+    const confirmation = screen.getByLabelText('Xác nhận mật khẩu')
 
     expect(submit).toBeDisabled()
     fireEvent.change(current, { target: { value: 'GrandStay!Local2026' } })
     fireEvent.change(next, { target: { value: 'short123' } })
     fireEvent.change(confirmation, { target: { value: 'short123' } })
 
-    expect(screen.getByText('Cần thêm 4 ký tự.')).toBeInTheDocument()
+    expect(screen.getByText('12–72 characters')).toBeInTheDocument()
     expect(submit).toBeDisabled()
 
     fireEvent.change(next, { target: { value: 'NewGrandStay!2026' } })

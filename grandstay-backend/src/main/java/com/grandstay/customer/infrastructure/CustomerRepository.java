@@ -4,5 +4,6 @@ public interface CustomerRepository extends JpaRepository<Customer,UUID> {
  Optional<Customer> findByCustomerCodeAndDeletedAtIsNull(String code);
  Optional<Customer> findByUserIdAndDeletedAtIsNull(UUID userId);
  Optional<Customer> findFirstByEmailIgnoreCaseAndDeletedAtIsNullOrderByCreatedAtAsc(String email);
+ Optional<Customer> findByIdentityHashAndDeletedAtIsNull(String identityHash);
  Page<Customer> findByFullNameContainingIgnoreCaseAndDeletedAtIsNull(String name,Pageable pageable);
 }

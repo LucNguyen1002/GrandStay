@@ -6,6 +6,8 @@ public final class ModelEnums {
     public enum UserStatus { ACTIVE, INACTIVE, LOCKED }
     public enum Gender { MALE, FEMALE, OTHER, UNDISCLOSED }
     public enum IdentityType { NATIONAL_ID, PASSPORT, OTHER }
+    public enum IdentityVerificationStatus { UNVERIFIED, PENDING, VERIFIED, REJECTED }
+    public enum IdentityDocumentSide { FRONT, BACK }
     public enum RoomOperationalStatus { AVAILABLE, CLEANING, MAINTENANCE, OUT_OF_SERVICE }
     public enum PricingUnit { HOURLY, DAILY, NIGHTLY }
     public enum DiscountType { PERCENTAGE, FIXED_AMOUNT }

@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
+import com.grandstay.auth.application.PasswordPolicy;
 import com.grandstay.shared.domain.ModelEnums.UserStatus;
 import com.grandstay.shared.dto.EntityDtos.UserDto;
 import com.grandstay.shared.exception.BusinessException;
@@ -57,6 +58,7 @@ public class UserAdminApplicationService {
 
     @Transactional
     public UserDto create(CreateUser command) {
+        requireStrongPassword(command.password(), command.username(), command.email());
         User user = new User();
         user.setUsername(command.username().trim());
         user.setEmail(command.email().trim());
@@ -77,10 +79,17 @@ public class UserAdminApplicationService {
         user.setPhone(command.phone());
         user.setStatus(command.status());
         if (command.password() != null && !command.password().isBlank()) {
+            requireStrongPassword(command.password(), user.getUsername(), command.email());
             user.setPasswordHash(encoder.encode(command.password()));
         }
         assign(id, command.roles());
         return mapper.toDto(users.save(user));
+    }
+
+    private void requireStrongPassword(String password, String username, String email) {
+        if (!PasswordPolicy.isStrong(password, username, email)) {
+            throw BusinessException.invalid("Password must contain uppercase, lowercase, number and special character and must not contain account identifiers");
+        }
     }
 
     @Transactional

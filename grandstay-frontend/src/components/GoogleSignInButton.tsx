@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { useI18n } from '../i18n'
 
 let googleScript: Promise<void> | null = null
 
@@ -25,6 +26,7 @@ export function GoogleSignInButton({ onCredential, onError, busy = false }: {
   onError: (message: string) => void
   busy?: boolean
 }) {
+  const { language, t } = useI18n()
   const container = useRef<HTMLDivElement>(null)
   const credentialHandler = useRef(onCredential)
   const errorHandler = useRef(onError)
@@ -56,7 +58,7 @@ export function GoogleSignInButton({ onCredential, onError, busy = false }: {
       window.google.accounts.id.renderButton(container.current, {
         type: 'standard', theme: 'outline', size: 'large', text: 'continue_with',
         shape: 'rectangular', logo_alignment: 'left', width: Math.min(container.current.clientWidth, 400),
-        locale: 'vi',
+        locale: language,
         click_listener: () => {
           errorHandler.current('')
           if (interactionTimer.current !== null) window.clearTimeout(interactionTimer.current)
@@ -71,11 +73,11 @@ export function GoogleSignInButton({ onCredential, onError, busy = false }: {
       if (interactionTimer.current !== null) window.clearTimeout(interactionTimer.current)
       interactionTimer.current = null
     }
-  }, [clientId])
+  }, [clientId, language])
 
   if (!clientId) {
     return <button type="button" disabled className="google-fallback w-full" title="Cần cấu hình VITE_GOOGLE_CLIENT_ID">
-      <span className="google-mark" aria-hidden="true">G</span> Tiếp tục với Google
+      <span className="google-mark" aria-hidden="true">G</span> {t('auth.google')}
     </button>
   }
   return <div className={busy ? 'pointer-events-none opacity-50' : ''} aria-busy={busy || undefined}>

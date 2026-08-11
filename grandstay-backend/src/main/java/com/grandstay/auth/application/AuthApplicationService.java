@@ -252,6 +252,10 @@ public class AuthApplicationService {
         if (!passwordEncoder.matches(command.currentPassword(), user.getPasswordHash())) {
             throw BusinessException.invalid("Current password is incorrect");
         }
+        if (!PasswordPolicy.isStrong(command.newPassword(), user.getUsername(), user.getEmail())) {
+            throw new BusinessException(ErrorCode.WEAK_PASSWORD, HttpStatus.UNPROCESSABLE_ENTITY,
+                    "Password must contain uppercase, lowercase, number and special character and must not contain account identifiers");
+        }
         if (passwordEncoder.matches(command.newPassword(), user.getPasswordHash())) {
             throw BusinessException.invalid("New password must be different from the current password");
         }
@@ -296,9 +300,7 @@ public class AuthApplicationService {
                 || !command.username().trim().matches("[A-Za-z0-9._-]{3,80}")
                 || command.email() == null || command.email().isBlank()
                 || command.email().trim().length() > 254 || !command.email().contains("@")
-                || command.password() == null || command.password().length() < 12
-                || command.password().length() > 72
-                || command.password().getBytes(StandardCharsets.UTF_8).length > 72) {
+                || !PasswordPolicy.isStrong(command.password(), command.username(), command.email())) {
             throw BusinessException.invalid("Registration information is invalid");
         }
     }

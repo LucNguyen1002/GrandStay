@@ -5,10 +5,7 @@ import { toast } from 'sonner'
 import { api, errorMessage } from '../api/client'
 import type { DepositQuote, SelfPayment, VnPayCheckout } from '../api/types'
 import { Badge, Button, Loading, statusTone } from './ui'
-
-const money = (value: number, currency = 'VND') => new Intl.NumberFormat('vi-VN', {
-  style: 'currency', currency, maximumFractionDigits: 0,
-}).format(Number(value))
+import { useI18n } from '../i18n'
 
 const paymentLabels: Record<string, string> = {
   PENDING: 'Đang chờ',
@@ -18,8 +15,10 @@ const paymentLabels: Record<string, string> = {
   REFUNDED: 'Đã hoàn tiền',
   PARTIALLY_REFUNDED: 'Hoàn một phần',
 }
+const paymentLabelsEn: Record<string, string> = { PENDING: 'Pending', COMPLETED: 'Paid', FAILED: 'Failed', CANCELLED: 'Cancelled', REFUNDED: 'Refunded', PARTIALLY_REFUNDED: 'Partially refunded' }
 
 export function CustomerDepositPanel({ bookingId }: { bookingId: string }) {
+  const { language, money } = useI18n()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const quote = useQuery({
@@ -36,7 +35,7 @@ export function CustomerDepositPanel({ bookingId }: { bookingId: string }) {
     },
     onError: error => toast.error(errorMessage(error)),
   })
-  if (quote.isLoading) return <div className="rounded-2xl border border-slate-200 p-4"><Loading text="Đang tính tiền cọc…"/></div>
+  if (quote.isLoading) return <div className="rounded-2xl border border-slate-200 p-4"><Loading text={language === 'vi' ? 'Đang tính tiền cọc…' : 'Calculating deposit…'}/></div>
   if (quote.error || !quote.data) return <div role="alert" className="rounded-2xl bg-red-50 p-4 text-sm text-red-700">{errorMessage(quote.error)}</div>
 
   const data = quote.data
@@ -48,36 +47,36 @@ export function CustomerDepositPanel({ bookingId }: { bookingId: string }) {
   return <section className="rounded-2xl border border-violet-200 bg-gradient-to-br from-violet-50 to-white p-4 sm:p-5">
     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
       <div>
-        <div className="flex items-center gap-2 text-violet-800"><WalletCards size={19}/><h3 className="font-bold">Thanh toán tiền cọc</h3></div>
-        <p className="mt-1 text-xs leading-5 text-ink-soft">Tiền cọc được hệ thống tính bằng {Number(data.depositPercent).toLocaleString('vi-VN')}% giá trị phòng dự kiến sau ưu đãi.</p>
+        <div className="flex items-center gap-2 text-violet-800"><WalletCards size={19}/><h3 className="font-bold">{language === 'vi' ? 'Thanh toán tiền cọc' : 'Deposit payment'}</h3></div>
+        <p className="mt-1 text-xs leading-5 text-ink-soft">{language === 'vi' ? `Tiền cọc được tính bằng ${Number(data.depositPercent)}% giá trị phòng dự kiến sau ưu đãi.` : `The deposit is ${Number(data.depositPercent)}% of the estimated room total after discounts.`}</p>
       </div>
       <Badge tone={fullyPaid ? 'green' : data.hasPendingPayment ? 'gold' : 'neutral'}>
-        {fullyPaid ? 'Đã đủ tiền cọc' : data.hasPendingPayment ? 'Đang xử lý' : 'Chưa thanh toán'}
+        {fullyPaid ? (language === 'vi' ? 'Đã đủ tiền cọc' : 'Deposit paid') : data.hasPendingPayment ? (language === 'vi' ? 'Đang xử lý' : 'Processing') : (language === 'vi' ? 'Chưa thanh toán' : 'Not paid')}
       </Badge>
     </div>
 
     <div className="mt-4 grid gap-3 sm:grid-cols-3">
-      <Metric label="Tổng dự kiến" value={money(data.estimatedTotal, data.currency)}/>
-      <Metric label="Cọc cần thanh toán" value={money(data.requiredDeposit, data.currency)}/>
-      <Metric label="Còn phải cọc" value={money(data.remainingDeposit, data.currency)} highlight={!fullyPaid}/>
+      <Metric label={language === 'vi' ? 'Tổng dự kiến' : 'Estimated total'} value={money(data.estimatedTotal, data.currency)}/>
+      <Metric label={language === 'vi' ? 'Cọc cần thanh toán' : 'Required deposit'} value={money(data.requiredDeposit, data.currency)}/>
+      <Metric label={language === 'vi' ? 'Còn phải cọc' : 'Deposit remaining'} value={money(data.remainingDeposit, data.currency)} highlight={!fullyPaid}/>
     </div>
 
-    {data.discountAmount > 0 && <p className="mt-3 text-xs text-emerald-700">Đã áp dụng ưu đãi {money(data.discountAmount, data.currency)} trước khi tính tiền cọc.</p>}
+    {data.discountAmount > 0 && <p className="mt-3 text-xs text-emerald-700">{language === 'vi' ? `Đã áp dụng ưu đãi ${money(data.discountAmount, data.currency)} trước khi tính tiền cọc.` : `${money(data.discountAmount, data.currency)} discount applied before calculating the deposit.`}</p>}
 
     <div className="mt-4 flex flex-wrap items-center gap-3">
       {canCreate && <Button loading={checkout.isPending} onClick={() => checkout.mutate()}>
-        <ExternalLink size={16}/>Thanh toán qua VNPay
+        <ExternalLink size={16}/>{language === 'vi' ? 'Thanh toán qua VNPay' : 'Pay with VNPay'}
       </Button>}
       {pending && <Button variant="secondary" onClick={() => navigate(`/payment/vnpay/result?result=PROCESSING&paymentId=${pending.id}&bookingId=${bookingId}`)}>
-        <Clock3 size={16}/>Kiểm tra giao dịch đang chờ
+        <Clock3 size={16}/>{language === 'vi' ? 'Kiểm tra giao dịch đang chờ' : 'Check pending payment'}
       </Button>}
-      {fullyPaid && <span className="inline-flex items-center gap-2 text-sm font-semibold text-emerald-700"><CheckCircle2 size={17}/>Booking đã đáp ứng mức cọc yêu cầu.</span>}
+      {fullyPaid && <span className="inline-flex items-center gap-2 text-sm font-semibold text-emerald-700"><CheckCircle2 size={17}/>{language === 'vi' ? 'Đặt phòng đã đáp ứng mức cọc yêu cầu.' : 'The required deposit has been paid.'}</span>}
       {data.bookingStatus === 'CONFIRMED' && !data.vnpayEnabled && !fullyPaid && <span className="text-sm text-amber-700">VNPay chưa được cấu hình; vui lòng liên hệ lễ tân để thanh toán cọc.</span>}
       {!['CONFIRMED'].includes(data.bookingStatus) && !fullyPaid && <span className="text-sm text-ink-soft">Chỉ booking đã xác nhận mới có thể thanh toán cọc trực tuyến.</span>}
     </div>
 
     {data.payments.length > 0 && <div className="mt-5 border-t border-violet-100 pt-4">
-      <div className="mb-2 flex items-center gap-2 text-sm font-bold"><ShieldCheck size={16} className="text-violet-700"/>Lịch sử tiền cọc</div>
+      <div className="mb-2 flex items-center gap-2 text-sm font-bold"><ShieldCheck size={16} className="text-violet-700"/>{language === 'vi' ? 'Lịch sử tiền cọc' : 'Deposit history'}</div>
       <div className="space-y-2">{data.payments.map(payment => <PaymentRow key={payment.id} payment={payment}/>)}</div>
     </div>}
     {data.vnpayEnabled && <p className="mt-4 text-[11px] leading-5 text-ink-soft">Bạn sẽ được chuyển sang cổng VNPay để chọn QR, thẻ nội địa hoặc thẻ quốc tế. GrandStay chỉ ghi nhận tiền sau khi VNPay xác nhận giao dịch.</p>}
@@ -92,8 +91,9 @@ function Metric({ label, value, highlight = false }: { label: string; value: str
 }
 
 function PaymentRow({ payment }: { payment: SelfPayment }) {
+  const { language, dateTime, money } = useI18n()
   return <div className="flex flex-col gap-1 rounded-xl bg-white/80 px-3 py-2 text-xs sm:flex-row sm:items-center sm:justify-between">
-    <div><strong>{payment.transactionCode}</strong><span className="ml-2 text-ink-soft">{new Date(payment.createdAt).toLocaleString('vi-VN')}</span></div>
-    <div className="flex items-center gap-2"><span className="font-semibold">{money(payment.amount, payment.currency)}</span><Badge tone={statusTone(payment.status)}>{paymentLabels[payment.status] ?? payment.status}</Badge></div>
+    <div><strong>{payment.transactionCode}</strong><span className="ml-2 text-ink-soft">{dateTime(payment.createdAt)}</span></div>
+    <div className="flex items-center gap-2"><span className="font-semibold">{money(payment.amount, payment.currency)}</span><Badge tone={statusTone(payment.status)}>{(language === 'vi' ? paymentLabels : paymentLabelsEn)[payment.status] ?? payment.status}</Badge></div>
   </div>
 }

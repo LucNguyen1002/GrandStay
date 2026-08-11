@@ -302,8 +302,17 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
 @keyframes landing-slider-progress { from { width: 0; } to { width: 100%; } }
 
 @media (max-width: 639px) {
-  .modal-panel { max-height: calc(100dvh - 1rem); border-radius: 1.25rem; }
-  .data-table th, .data-table td { padding-inline: .8rem; }
+  .modal-backdrop { align-items: flex-end; padding: 0; }
+  .modal-panel { max-height: 96dvh; max-width: none; border-radius: 1.35rem 1.35rem 0 0; padding: 1.1rem; }
+  .page-title { font-size: clamp(1.55rem, 8vw, 2rem); line-height: 1.12; }
+  .page-header { margin-bottom: 1rem; }
+  .page-header > div:last-child, .page-header > div:last-child > button { width: 100%; }
+  .app-card { border-radius: 1rem; padding: 1rem; }
+  .table-shell { margin-inline: -.25rem; border-radius: .85rem; }
+  .data-table { min-width: 680px; font-size: .8rem; }
+  .data-table th, .data-table td { padding: .75rem .7rem; }
+  .field { min-height: 3rem; font-size: 1rem; }
+  .btn-primary, .btn-secondary, .btn-danger { min-height: 2.85rem; }
   .landing-hero-image { transform: scale(1.025); }
 }
 

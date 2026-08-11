@@ -5,6 +5,7 @@ import { BrowserRouter } from 'react-router-dom'
 import { Toaster } from 'sonner'
 import { App } from './App'
 import { AuthProvider } from './auth/AuthProvider'
+import { I18nProvider } from './i18n'
 import './styles.css'
 
 const queryClient = new QueryClient({
@@ -13,13 +14,15 @@ const queryClient = new QueryClient({
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <AuthProvider>
-          <App />
-          <Toaster richColors position="top-right" />
-        </AuthProvider>
-      </BrowserRouter>
-    </QueryClientProvider>
+    <I18nProvider>
+      <QueryClientProvider client={queryClient}>
+        <BrowserRouter>
+          <AuthProvider>
+            <App />
+            <Toaster richColors position="top-right" />
+          </AuthProvider>
+        </BrowserRouter>
+      </QueryClientProvider>
+    </I18nProvider>
   </StrictMode>,
 )

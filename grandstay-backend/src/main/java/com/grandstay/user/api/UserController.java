@@ -127,7 +127,8 @@ public class UserController {
             @NotBlank @Email @Size(max = 254) String email,
             @NotBlank @Size(max = 150) String fullName,
             @Size(max = 30) String phone,
-            @NotBlank @Size(min = 12, max = 72) String password,
+            @NotBlank @Size(min = 12, max = 72)
+            @Pattern(regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[^A-Za-z0-9]).+$") String password,
             @NotNull UserStatus status,
             @NotEmpty Set<@Pattern(regexp = "ADMIN|MANAGER|RECEPTIONIST|CUSTOMER") String> roles) {
     }
@@ -136,7 +137,8 @@ public class UserController {
             @NotBlank @Email @Size(max = 254) String email,
             @NotBlank @Size(max = 150) String fullName,
             @Size(max = 30) String phone,
-            @Size(min = 12, max = 72) String password,
+            @Size(min = 12, max = 72)
+            @Pattern(regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[^A-Za-z0-9]).+$") String password,
             @NotNull UserStatus status,
             @NotEmpty Set<@Pattern(regexp = "ADMIN|MANAGER|RECEPTIONIST|CUSTOMER") String> roles) {
     }
