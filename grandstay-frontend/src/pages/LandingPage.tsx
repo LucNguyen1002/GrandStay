@@ -127,6 +127,15 @@ export function LandingPage() {
   const journey = journeySlides[activeJourney]
 
   useEffect(() => {
+    // Wake the free Render instance while visitors explore the landing page.
+    // Authentication remains an explicit user action on the login page.
+    void fetch('/backend-healthz', {
+      cache: 'no-store',
+      headers: { Accept: 'application/json' },
+    }).catch(() => undefined)
+  }, [])
+
+  useEffect(() => {
     const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
     const updatePreference = () => setReduceMotion(mediaQuery.matches)
     mediaQuery.addEventListener('change', updatePreference)
