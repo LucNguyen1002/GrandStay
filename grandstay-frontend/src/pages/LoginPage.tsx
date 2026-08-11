@@ -20,7 +20,7 @@ const HEALTH_REQUEST_TIMEOUT = 8_000
 const HEALTH_RETRY_DELAY = 3_000
 
 export function LoginPage() {
-  const { t } = useI18n()
+  const { t, text } = useI18n()
   const schema = z.object({ usernameOrEmail: z.string().min(1, t('auth.requiredAccount')), password: z.string().min(1, t('auth.requiredPassword')) })
   const { login, loginWithGoogle, isAuthenticated, user } = useAuth()
   const navigate = useNavigate()
@@ -122,7 +122,7 @@ export function LoginPage() {
     </div>
     <form onSubmit={handleSubmit(submit)} className="mt-8 space-y-5">
       <label className="block"><span className="label">{t('auth.identity')}</span><div className="relative"><UserRound className="field-icon" size={19}/><input autoFocus autoComplete="username" aria-invalid={Boolean(errors.usernameOrEmail)} className={`field field-with-icon ${errors.usernameOrEmail ? 'field-error' : ''}`} {...register('usernameOrEmail')} /></div>{errors.usernameOrEmail && <small className="mt-1 block text-red-700">{errors.usernameOrEmail.message}</small>}</label>
-      <label className="block"><span className="label">{t('auth.password')}</span><div className="relative"><LockKeyhole className="field-icon" size={19}/><input type={showPassword ? 'text' : 'password'} autoComplete="current-password" aria-invalid={Boolean(errors.password)} className={`field field-with-icon field-with-action ${errors.password ? 'field-error' : ''}`} {...register('password')} /><button type="button" className="field-action" aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'} onClick={() => setShowPassword(value => !value)}>{showPassword ? <EyeOff size={18}/> : <Eye size={18}/>}</button></div>{errors.password && <small className="mt-1 block text-red-700">{errors.password.message}</small>}</label>
+      <label className="block"><span className="label">{t('auth.password')}</span><div className="relative"><LockKeyhole className="field-icon" size={19}/><input type={showPassword ? 'text' : 'password'} autoComplete="current-password" aria-invalid={Boolean(errors.password)} className={`field field-with-icon field-with-action ${errors.password ? 'field-error' : ''}`} {...register('password')} /><button type="button" className="field-action" aria-label={showPassword ? text('Ẩn mật khẩu', 'Hide password') : text('Hiện mật khẩu', 'Show password')} onClick={() => setShowPassword(value => !value)}>{showPassword ? <EyeOff size={18}/> : <Eye size={18}/>}</button></div>{errors.password && <small className="mt-1 block text-red-700">{errors.password.message}</small>}</label>
       {serverError && <div role="alert" className="form-error rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{serverError}</div>}
       <Button type="submit" loading={isSubmitting} disabled={googleBusy || !backendReady} className="w-full py-3.5">{backendReady ? t('auth.login') : t('auth.waitingServer')}</Button>
     </form>

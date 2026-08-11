@@ -163,6 +163,7 @@ export function formatMoney(value: number, currency = 'VND', language = getStore
 type I18nContextValue = {
   language: Language; locale: string; setLanguage: (language: Language) => void
   t: (key: MessageKey, variables?: Variables) => string
+  text: (vietnamese: string, english: string) => string
   dateTime: (value?: string | number | Date) => string; date: (value?: string | number | Date) => string
   money: (value: number, currency?: string) => string
 }
@@ -172,6 +173,7 @@ const I18nContext = createContext<I18nContextValue>({
   locale: localeFor(fallbackLanguage),
   setLanguage: () => undefined,
   t: (key, variables) => translate(key, variables, fallbackLanguage),
+  text: (vietnamese, english) => fallbackLanguage === 'vi' ? vietnamese : english,
   dateTime: value => formatDateTime(value, fallbackLanguage),
   date: value => formatDate(value, fallbackLanguage),
   money: (value, currency) => formatMoney(value, currency, fallbackLanguage),
@@ -183,6 +185,7 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   const value = useMemo<I18nContextValue>(() => ({
     language, locale: localeFor(language), setLanguage,
     t: (key, variables) => translate(key, variables, language),
+    text: (vietnamese, english) => language === 'vi' ? vietnamese : english,
     dateTime: value => formatDateTime(value, language), date: value => formatDate(value, language),
     money: (value, currency) => formatMoney(value, currency, language),
   }), [language])

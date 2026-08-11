@@ -16,7 +16,7 @@ const MAX_PASSWORD_LENGTH = 72
 
 export function SettingsPage() {
   const { user, logout, hasRole } = useAuth()
-  const { language, t } = useI18n()
+  const { language, t, text } = useI18n()
   const customer = hasRole('CUSTOMER')
   const [changingPassword, setChangingPassword] = useState(false)
   const [confirmingAvatarDelete, setConfirmingAvatarDelete] = useState(false)
@@ -59,7 +59,7 @@ export function SettingsPage() {
         <div className="flex flex-col gap-4 rounded-2xl bg-slate-50/80 p-4 sm:flex-row sm:items-center">
           <div className="relative w-fit">
             <UserAvatar userId={user?.sub} name={user?.name ?? user?.username} className="size-20 rounded-2xl text-2xl" />
-            <button type="button" aria-label="Chọn ảnh đại diện" disabled={avatarBusy} onClick={() => avatarInput.current?.click()} className="absolute -bottom-2 -right-2 grid size-9 place-items-center rounded-xl border-2 border-white bg-ink text-white shadow-lg transition hover:-translate-y-0.5 hover:bg-forest disabled:opacity-60"><Camera size={16}/></button>
+            <button type="button" aria-label={text('Chọn ảnh đại diện', 'Choose avatar')} disabled={avatarBusy} onClick={() => avatarInput.current?.click()} className="absolute -bottom-2 -right-2 grid size-9 place-items-center rounded-xl border-2 border-white bg-ink text-white shadow-lg transition hover:-translate-y-0.5 hover:bg-forest disabled:opacity-60"><Camera size={16}/></button>
           </div>
           <div className="min-w-0 flex-1"><h2 className="truncate font-display text-xl font-bold">{user?.name ?? user?.username}</h2><p className="text-sm text-ink-soft">@{user?.username}</p><p className="mt-2 text-xs leading-5 text-slate-500">JPEG/PNG · 15 MB</p></div>
           <div className="flex shrink-0 flex-wrap gap-2 sm:flex-col">
@@ -89,7 +89,7 @@ function CustomerProfileSection() {
 }
 
 function CustomerProfileEditor({ profile }: { profile: CustomerProfile }) {
-  const { language, t } = useI18n()
+  const { language, t, text } = useI18n()
   const client = useQueryClient()
   const [form, setForm] = useState({ fullName: profile.fullName ?? '', email: profile.email ?? '', phone: profile.phone ?? '', nationality: profile.nationality ?? 'VN', dateOfBirth: profile.dateOfBirth ?? '', gender: profile.gender ?? '', address: profile.address ?? '' })
   const [identity, setIdentity] = useState({ type: profile.identityType ?? 'NATIONAL_ID', number: '' })
@@ -132,7 +132,7 @@ function CustomerProfileEditor({ profile }: { profile: CustomerProfile }) {
       {profile.identityMasked && <div className="mb-4 rounded-xl bg-slate-50 px-4 py-3 font-mono text-sm font-bold">{profile.identityType} · {profile.identityMasked}</div>}
       {profile.identityRejectionReason && <div className="mb-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{profile.identityRejectionReason}</div>}
       <div className="grid gap-4 sm:grid-cols-[.75fr_1.25fr]">
-        <label><span className="label">{t('profile.identityType')}</span><select className="field" value={identity.type} onChange={event => setIdentity(previous => ({ ...previous, type: event.target.value as typeof identity.type }))}><option value="NATIONAL_ID">CCCD</option><option value="PASSPORT">Passport</option><option value="OTHER">{language === 'vi' ? 'Giấy tờ khác' : 'Other document'}</option></select></label>
+        <label><span className="label">{t('profile.identityType')}</span><select className="field" value={identity.type} onChange={event => setIdentity(previous => ({ ...previous, type: event.target.value as typeof identity.type }))}><option value="NATIONAL_ID">{text('CCCD', 'National ID')}</option><option value="PASSPORT">Passport</option><option value="OTHER">{text('Giấy tờ khác', 'Other document')}</option></select></label>
         <label><span className="label">{t('profile.identityNumber')}</span><input className="field uppercase" inputMode={identity.type === 'NATIONAL_ID' ? 'numeric' : 'text'} maxLength={30} value={identity.number} onChange={event => setIdentity(previous => ({ ...previous, number: event.target.value }))}/></label>
       </div>
       <div className="mt-4 flex justify-end"><Button disabled={!identityValid} loading={saveIdentity.isPending} onClick={() => saveIdentity.mutate()}><Save size={16}/>{language === 'vi' ? 'Lưu số giấy tờ' : 'Save document number'}</Button></div>
@@ -145,11 +145,12 @@ function CustomerProfileEditor({ profile }: { profile: CustomerProfile }) {
 }
 
 function IdentityUpload({ label, uploaded, busy, onFile }: { label: string; uploaded: boolean; busy: boolean; onFile: (file: File) => void }) {
-  return <label className={`flex min-h-24 cursor-pointer items-center gap-3 rounded-2xl border border-dashed p-4 transition hover:border-gold ${uploaded ? 'border-emerald-300 bg-emerald-50/60' : 'border-slate-300 bg-slate-50'}`}><span className="grid size-10 place-items-center rounded-xl bg-white text-ink shadow-sm"><Upload size={18}/></span><span className="min-w-0 flex-1"><strong className="block">{label}</strong><small className={uploaded ? 'text-emerald-700' : 'text-ink-soft'}>{uploaded ? '✓ Uploaded' : 'JPEG/PNG · 2 MB'}</small></span><input type="file" accept="image/jpeg,image/png" disabled={busy} className="sr-only" onChange={event => { const file = event.target.files?.[0]; event.target.value = ''; if (file) onFile(file) }}/></label>
+  const { text } = useI18n()
+  return <label className={`flex min-h-24 cursor-pointer items-center gap-3 rounded-2xl border border-dashed p-4 transition hover:border-gold ${uploaded ? 'border-emerald-300 bg-emerald-50/60' : 'border-slate-300 bg-slate-50'}`}><span className="grid size-10 place-items-center rounded-xl bg-white text-ink shadow-sm"><Upload size={18}/></span><span className="min-w-0 flex-1"><strong className="block">{label}</strong><small className={uploaded ? 'text-emerald-700' : 'text-ink-soft'}>{uploaded ? text('✓ Đã tải lên', '✓ Uploaded') : 'JPEG/PNG · 2 MB'}</small></span><input type="file" accept="image/jpeg,image/png" disabled={busy} className="sr-only" onChange={event => { const file = event.target.files?.[0]; event.target.value = ''; if (file) onFile(file) }}/></label>
 }
 
 function ChangePasswordModal({ onClose, onComplete }: { onClose: () => void; onComplete: () => void }) {
-  const { language, t } = useI18n()
+  const { language, t, text } = useI18n()
   const [form, setForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' })
   const [attempted, setAttempted] = useState(false)
   const mutation = useMutation({ mutationFn: () => api.post('/auth/change-password', { currentPassword: form.currentPassword, newPassword: form.newPassword }), onSuccess: () => { toast.success(language === 'vi' ? 'Đã đổi mật khẩu. Vui lòng đăng nhập lại.' : 'Password changed. Please sign in again.'); onComplete() } })
@@ -170,7 +171,7 @@ function ChangePasswordModal({ onClose, onComplete }: { onClose: () => void; onC
         <PasswordField id="confirm-password" label={t('auth.confirmPassword')} value={form.confirmPassword} autoComplete="new-password" error={(attempted || form.confirmPassword.length > 0) && !rules.matches ? (language === 'vi' ? 'Mật khẩu xác nhận chưa khớp.' : 'Passwords do not match.') : undefined} onChange={value => set('confirmPassword', value)}/>
       </div>
       <div className="mt-5 grid gap-2 rounded-2xl bg-slate-50 p-4 text-sm sm:grid-cols-2">
-        <PasswordRule met={rules.length}>12–72 characters</PasswordRule><PasswordRule met={rules.upper}>A–Z</PasswordRule><PasswordRule met={rules.lower}>a–z</PasswordRule><PasswordRule met={rules.number}>0–9</PasswordRule><PasswordRule met={rules.special}>!@#$%</PasswordRule><PasswordRule met={rules.different}>{language === 'vi' ? 'Khác mật khẩu cũ' : 'Different from current'}</PasswordRule>
+        <PasswordRule met={rules.length}>{text('12–72 ký tự', '12–72 characters')}</PasswordRule><PasswordRule met={rules.upper}>A–Z</PasswordRule><PasswordRule met={rules.lower}>a–z</PasswordRule><PasswordRule met={rules.number}>0–9</PasswordRule><PasswordRule met={rules.special}>!@#$%</PasswordRule><PasswordRule met={rules.different}>{language === 'vi' ? 'Khác mật khẩu cũ' : 'Different from current'}</PasswordRule>
       </div>
       {mutation.error && <div role="alert" className="mt-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{errorMessage(mutation.error)}</div>}
       <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end"><Button variant="secondary" onClick={onClose}>{t('common.close')}</Button><Button type="submit" disabled={!valid} loading={mutation.isPending}>{t('common.save')}</Button></div>

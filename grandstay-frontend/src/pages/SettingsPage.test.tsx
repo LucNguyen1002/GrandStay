@@ -48,7 +48,7 @@ describe('SettingsPage password flow', () => {
     fireEvent.change(next, { target: { value: 'short123' } })
     fireEvent.change(confirmation, { target: { value: 'short123' } })
 
-    expect(screen.getByText('12–72 characters')).toBeInTheDocument()
+    expect(screen.getByText('12–72 ký tự')).toBeInTheDocument()
     expect(submit).toBeDisabled()
 
     fireEvent.change(next, { target: { value: 'NewGrandStay!2026' } })

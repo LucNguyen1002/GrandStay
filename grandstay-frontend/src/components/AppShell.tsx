@@ -32,7 +32,7 @@ const navigation: NavigationItem[] = [
 ]
 
 export function AppShell() {
-  const { locale, t } = useI18n()
+  const { locale, t, text } = useI18n()
   const [open, setOpen] = useState(false)
   const [compact, setCompact] = useState(() => localStorage.getItem('grandstay:compact-nav') === 'true')
   const [profileOpen, setProfileOpen] = useState(false)
@@ -43,6 +43,10 @@ export function AppShell() {
     || Boolean(item.alternativeRole && hasRole(item.alternativeRole)))
   const currentPageKey = navigation.find(item => item.to === location.pathname)?.label
   const currentPage = currentPageKey ? t(currentPageKey) : 'GrandStay'
+  const roleNames: Record<string, string> = {
+    ADMIN: text('Quản trị viên', 'Administrator'), MANAGER: text('Quản lý', 'Manager'),
+    RECEPTIONIST: text('Lễ tân', 'Receptionist'), CUSTOMER: text('Khách hàng', 'Guest'),
+  }
   const today = new Intl.DateTimeFormat(locale, { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date())
 
   useEffect(() => {
@@ -59,16 +63,16 @@ export function AppShell() {
 
   return <div className="min-h-screen bg-canvas">
     <RealtimeSync />
-    {open && <button aria-label="Đóng trình đơn" className="sidebar-backdrop fixed inset-0 z-30 bg-ink/45 backdrop-blur-[2px] lg:hidden" onClick={() => setOpen(false)} />}
+    {open && <button aria-label={text('Đóng trình đơn', 'Close menu')} className="sidebar-backdrop fixed inset-0 z-30 bg-ink/45 backdrop-blur-[2px] lg:hidden" onClick={() => setOpen(false)} />}
     <aside className={`app-sidebar fixed inset-y-0 left-0 z-40 flex flex-col bg-ink text-white shadow-2xl transition-[width,transform] duration-300 ease-out ${compact ? 'w-21' : 'w-68'} ${open ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}>
       <div className={`flex h-20 items-center border-b border-white/10 ${compact ? 'justify-center px-3' : 'justify-between px-5'}`}>
-        <Link to={user ? defaultAuthenticatedRoute(user) : '/'} aria-label="GrandStay - Trang chính" onClick={() => { setOpen(false); setProfileOpen(false) }} className="flex items-center gap-3 overflow-hidden rounded-xl focus-visible:outline-offset-4">
+        <Link to={user ? defaultAuthenticatedRoute(user) : '/'} aria-label={text('GrandStay - Trang chính', 'GrandStay - Home')} onClick={() => { setOpen(false); setProfileOpen(false) }} className="flex items-center gap-3 overflow-hidden rounded-xl focus-visible:outline-offset-4">
           <div className="brand-mark grid size-11 shrink-0 place-items-center rounded-xl border border-gold/60 bg-white/5 font-brand text-xl text-gold">G</div>
-          {!compact && <div className="whitespace-nowrap"><div className="font-brand text-xl font-bold">GrandStay</div><div className="text-[10px] uppercase tracking-[.25em] text-gold-soft">Hotel management</div></div>}
+          {!compact && <div className="whitespace-nowrap"><div className="font-brand text-xl font-bold">GrandStay</div><div className="text-[10px] uppercase tracking-[.25em] text-gold-soft">{text('Quản lý khách sạn', 'Hotel management')}</div></div>}
         </Link>
-        {!compact && <button type="button" aria-label="Đóng trình đơn" className="icon-button lg:hidden" onClick={() => setOpen(false)}><X size={21}/></button>}
+        {!compact && <button type="button" aria-label={text('Đóng trình đơn', 'Close menu')} className="icon-button lg:hidden" onClick={() => setOpen(false)}><X size={21}/></button>}
       </div>
-      <nav aria-label="Điều hướng chính" className="sidebar-scroll flex-1 space-y-1 overflow-y-auto p-3">
+      <nav aria-label={text('Điều hướng chính', 'Main navigation')} className="sidebar-scroll flex-1 space-y-1 overflow-y-auto p-3">
         {items.map(({ to, label, icon: Icon }) => <NavLink
           key={to}
           to={to}
@@ -89,7 +93,7 @@ export function AppShell() {
     <div className={`transition-[padding] duration-300 ease-out ${compact ? 'lg:pl-21' : 'lg:pl-68'}`}>
       <header className="app-header sticky top-0 z-20 flex h-20 items-center justify-between border-b border-slate-200/70 bg-canvas/90 px-4 backdrop-blur-xl sm:px-7">
         <div className="flex min-w-0 items-center gap-3">
-          <button type="button" aria-label="Mở trình đơn" className="icon-button rounded-xl border border-slate-200 bg-white p-2 lg:hidden" onClick={() => setOpen(true)}><Menu/></button>
+          <button type="button" aria-label={text('Mở trình đơn', 'Open menu')} className="icon-button rounded-xl border border-slate-200 bg-white p-2 lg:hidden" onClick={() => setOpen(true)}><Menu/></button>
           <div className="hidden min-w-0 sm:block">
             <div className="flex items-center gap-2 text-sm"><span className="text-ink-soft">{t('nav.hotelOperations')}</span><span className="text-slate-300">/</span><strong className="truncate text-ink">{currentPage}</strong></div>
             <div className="mt-1 flex items-center gap-1.5 text-[11px] text-slate-400"><CalendarDays size={12}/>{today}</div>
@@ -97,10 +101,10 @@ export function AppShell() {
         </div>
 
         <div className="flex items-center gap-2">
-          <LanguageToggle compact />
+          <LanguageToggle />
           <div ref={profileRef} className="relative">
           <button type="button" aria-haspopup="menu" aria-expanded={profileOpen} onClick={() => setProfileOpen(value => !value)} className="profile-trigger flex items-center gap-3 rounded-2xl p-1.5 pl-3 text-left transition hover:bg-white hover:shadow-sm">
-            <div className="hidden text-right sm:block"><div className="max-w-40 truncate text-sm font-bold">{user?.name ?? user?.username}</div><div className="text-xs text-ink-soft">{user?.roles?.join(' · ')}</div></div>
+            <div className="hidden text-right sm:block"><div className="max-w-40 truncate text-sm font-bold">{user?.name ?? user?.username}</div><div className="text-xs text-ink-soft">{user?.roles?.map(role => roleNames[role] ?? role).join(' · ')}</div></div>
             <UserAvatar userId={user?.sub} name={user?.name ?? user?.username} />
             <ChevronDown size={15} className={`hidden text-ink-soft transition-transform sm:block ${profileOpen ? 'rotate-180' : ''}`}/>
           </button>

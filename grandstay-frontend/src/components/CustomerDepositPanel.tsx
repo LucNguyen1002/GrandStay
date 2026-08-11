@@ -18,7 +18,7 @@ const paymentLabels: Record<string, string> = {
 const paymentLabelsEn: Record<string, string> = { PENDING: 'Pending', COMPLETED: 'Paid', FAILED: 'Failed', CANCELLED: 'Cancelled', REFUNDED: 'Refunded', PARTIALLY_REFUNDED: 'Partially refunded' }
 
 export function CustomerDepositPanel({ bookingId }: { bookingId: string }) {
-  const { language, money } = useI18n()
+  const { language, money, text } = useI18n()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const quote = useQuery({
@@ -71,15 +71,15 @@ export function CustomerDepositPanel({ bookingId }: { bookingId: string }) {
         <Clock3 size={16}/>{language === 'vi' ? 'Kiểm tra giao dịch đang chờ' : 'Check pending payment'}
       </Button>}
       {fullyPaid && <span className="inline-flex items-center gap-2 text-sm font-semibold text-emerald-700"><CheckCircle2 size={17}/>{language === 'vi' ? 'Đặt phòng đã đáp ứng mức cọc yêu cầu.' : 'The required deposit has been paid.'}</span>}
-      {data.bookingStatus === 'CONFIRMED' && !data.vnpayEnabled && !fullyPaid && <span className="text-sm text-amber-700">VNPay chưa được cấu hình; vui lòng liên hệ lễ tân để thanh toán cọc.</span>}
-      {!['CONFIRMED'].includes(data.bookingStatus) && !fullyPaid && <span className="text-sm text-ink-soft">Chỉ booking đã xác nhận mới có thể thanh toán cọc trực tuyến.</span>}
+      {data.bookingStatus === 'CONFIRMED' && !data.vnpayEnabled && !fullyPaid && <span className="text-sm text-amber-700">{text('VNPay chưa được cấu hình; vui lòng liên hệ lễ tân để thanh toán cọc.', 'VNPay is not configured; please contact the front desk to pay your deposit.')}</span>}
+      {!['CONFIRMED'].includes(data.bookingStatus) && !fullyPaid && <span className="text-sm text-ink-soft">{text('Chỉ đặt phòng đã xác nhận mới có thể thanh toán cọc trực tuyến.', 'Only confirmed bookings can pay a deposit online.')}</span>}
     </div>
 
     {data.payments.length > 0 && <div className="mt-5 border-t border-violet-100 pt-4">
       <div className="mb-2 flex items-center gap-2 text-sm font-bold"><ShieldCheck size={16} className="text-violet-700"/>{language === 'vi' ? 'Lịch sử tiền cọc' : 'Deposit history'}</div>
       <div className="space-y-2">{data.payments.map(payment => <PaymentRow key={payment.id} payment={payment}/>)}</div>
     </div>}
-    {data.vnpayEnabled && <p className="mt-4 text-[11px] leading-5 text-ink-soft">Bạn sẽ được chuyển sang cổng VNPay để chọn QR, thẻ nội địa hoặc thẻ quốc tế. GrandStay chỉ ghi nhận tiền sau khi VNPay xác nhận giao dịch.</p>}
+    {data.vnpayEnabled && <p className="mt-4 text-[11px] leading-5 text-ink-soft">{text('Bạn sẽ được chuyển sang cổng VNPay để chọn QR, thẻ nội địa hoặc thẻ quốc tế. GrandStay chỉ ghi nhận tiền sau khi VNPay xác nhận giao dịch.', 'You will be redirected to VNPay to choose QR, a domestic card or an international card. GrandStay records the payment only after VNPay confirms it.')}</p>}
   </section>
 }
 

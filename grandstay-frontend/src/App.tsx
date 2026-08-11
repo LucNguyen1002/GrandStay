@@ -8,6 +8,7 @@ import { LandingPage } from './pages/LandingPage'
 import { Loading } from './components/ui'
 import { LockKeyhole } from 'lucide-react'
 import { defaultAuthenticatedRoute } from './auth/routes'
+import { useI18n } from './i18n'
 
 const DashboardPage = lazy(() => import('./pages/DashboardPage').then(m => ({ default: m.DashboardPage })))
 const RoomsPage = lazy(() => import('./pages/RoomsPage').then(m => ({ default: m.RoomsPage })))
@@ -41,14 +42,15 @@ function Authorized({ children, permission, role, anyPermissions = [], anyRoles 
   anyPermissions?: string[]
   anyRoles?: string[]
 }) {
+  const { text } = useI18n()
   const { can, hasRole } = useAuth()
   const alternativeRequired = anyPermissions.length > 0 || anyRoles.length > 0
   const hasAlternative = anyPermissions.some(can) || anyRoles.some(hasRole)
   if ((permission && !can(permission)) || (role && !hasRole(role)) || (alternativeRequired && !hasAlternative)) {
     return <div className="mx-auto max-w-xl py-20 text-center">
       <div className="mx-auto grid size-14 place-items-center rounded-2xl bg-amber-50 text-amber-700"><LockKeyhole size={24}/></div>
-      <h1 className="mt-5 font-display text-2xl font-bold">Bạn chưa được cấp quyền</h1>
-      <p className="mt-2 text-sm leading-6 text-ink-soft">Tài khoản hiện tại không có quyền truy cập chức năng này. Hãy liên hệ quản trị viên nếu bạn cần sử dụng.</p>
+      <h1 className="mt-5 font-display text-2xl font-bold">{text('Bạn chưa được cấp quyền', 'Access not granted')}</h1>
+      <p className="mt-2 text-sm leading-6 text-ink-soft">{text('Tài khoản hiện tại không có quyền truy cập chức năng này. Hãy liên hệ quản trị viên nếu bạn cần sử dụng.', 'Your account does not have permission to access this feature. Contact an administrator if you need access.')}</p>
     </div>
   }
   return children

@@ -220,13 +220,13 @@ export function LandingPage() {
 
   return <main ref={pageRef} className="landing-page min-h-screen overflow-hidden bg-[#f8f5ee] text-ink">
     <section onPointerMove={moveHero} onPointerLeave={resetHero} className="landing-hero relative min-h-[760px] overflow-hidden bg-ink text-white lg:min-h-[820px]">
-      <img src={heroImage} alt="Không gian phòng nghỉ GrandStay hướng ra thiên nhiên" className="landing-hero-image absolute inset-0 size-full object-cover object-[62%_center]" />
+      <img src={heroImage} alt={language === 'vi' ? 'Không gian phòng nghỉ GrandStay hướng ra thiên nhiên' : 'A GrandStay guest room overlooking nature'} className="landing-hero-image absolute inset-0 size-full object-cover object-[62%_center]" />
       <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(8,27,43,.96)_0%,rgba(10,33,51,.88)_35%,rgba(9,27,42,.32)_72%,rgba(8,24,38,.18)_100%)]" />
       <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(5,20,32,.55)_0%,transparent_28%,rgba(5,20,32,.28)_100%)]" />
 
       <header className="landing-header relative z-30 border-b border-white/12">
         <div className="mx-auto flex h-20 max-w-[1440px] items-center justify-between px-5 sm:px-8 lg:px-12">
-          <Link to="/" className="landing-brand flex items-center gap-3 rounded-xl" aria-label="GrandStay - Trang chủ">
+          <Link to="/" className="landing-brand flex items-center gap-3 rounded-xl" aria-label={language === 'vi' ? 'GrandStay - Trang chủ' : 'GrandStay - Home'}>
             <span className="landing-brand-mark grid size-11 place-items-center rounded-xl border border-gold/60 bg-white/8 font-brand text-xl font-bold text-gold-soft backdrop-blur">G</span>
             <span>
               <span className="block font-brand text-xl font-bold tracking-wide">GrandStay</span>
@@ -246,7 +246,7 @@ export function LandingPage() {
             </Link>
           </div>
 
-          <button type="button" aria-label="Mở trình đơn" aria-expanded={menuOpen} onClick={() => setMenuOpen(value => !value)} className="grid size-11 place-items-center rounded-xl border border-white/15 bg-white/8 sm:hidden">
+          <button type="button" aria-label={language === 'vi' ? 'Mở trình đơn' : 'Open menu'} aria-expanded={menuOpen} onClick={() => setMenuOpen(value => !value)} className="grid size-11 place-items-center rounded-xl border border-white/15 bg-white/8 sm:hidden">
             {menuOpen ? <X size={21}/> : <Menu size={21}/>} 
           </button>
         </div>
@@ -447,7 +447,7 @@ export function LandingPage() {
           <span className="grid size-10 place-items-center rounded-xl bg-ink font-brand text-lg font-bold text-gold-soft">G</span>
           <span><span className="block font-brand text-lg font-bold">GrandStay</span><span className="text-[9px] font-bold uppercase tracking-[.25em] text-ink-soft">Stay beautifully</span></span>
         </Link>
-        <nav aria-label="Điều hướng cuối trang" className="flex flex-wrap gap-x-6 gap-y-3 text-xs font-semibold text-ink-soft">
+        <nav aria-label={language === 'vi' ? 'Điều hướng cuối trang' : 'Footer navigation'} className="flex flex-wrap gap-x-6 gap-y-3 text-xs font-semibold text-ink-soft">
           {navigation.map(item => <a key={item.href} href={item.href} className="hover:text-ink">{language === 'en' ? item.labelEn : item.label}</a>)}
           <Link to="/login" className="hover:text-ink">{language === 'vi' ? 'Đăng nhập' : 'Sign in'}</Link>
         </nav>

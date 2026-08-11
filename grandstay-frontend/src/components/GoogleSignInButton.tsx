@@ -3,7 +3,7 @@ import { useI18n } from '../i18n'
 
 let googleScript: Promise<void> | null = null
 
-function loadGoogleIdentity() {
+function loadGoogleIdentity(loadError: string) {
   if (window.google?.accounts?.id) return Promise.resolve()
   if (googleScript) return googleScript
   googleScript = new Promise<void>((resolve, reject) => {
@@ -14,7 +14,7 @@ function loadGoogleIdentity() {
     script.onload = () => resolve()
     script.onerror = () => {
       googleScript = null
-      reject(new Error('Không thể tải dịch vụ đăng nhập Google.'))
+      reject(new Error(loadError))
     }
     document.head.appendChild(script)
   })
@@ -26,7 +26,7 @@ export function GoogleSignInButton({ onCredential, onError, busy = false }: {
   onError: (message: string) => void
   busy?: boolean
 }) {
-  const { language, t } = useI18n()
+  const { language, t, text } = useI18n()
   const container = useRef<HTMLDivElement>(null)
   const credentialHandler = useRef(onCredential)
   const errorHandler = useRef(onError)
@@ -39,7 +39,7 @@ export function GoogleSignInButton({ onCredential, onError, busy = false }: {
   useEffect(() => {
     if (!clientId) return
     let active = true
-    loadGoogleIdentity().then(() => {
+    loadGoogleIdentity(text('Không thể tải dịch vụ đăng nhập Google.', 'Unable to load Google Sign-In.')).then(() => {
       if (!active || !container.current) return
       window.google.accounts.id.initialize({
         client_id: clientId,
@@ -47,7 +47,7 @@ export function GoogleSignInButton({ onCredential, onError, busy = false }: {
           if (interactionTimer.current !== null) window.clearTimeout(interactionTimer.current)
           interactionTimer.current = null
           if (response.credential) credentialHandler.current(response.credential)
-          else errorHandler.current('Google không trả về thông tin đăng nhập hợp lệ.')
+          else errorHandler.current(text('Google không trả về thông tin đăng nhập hợp lệ.', 'Google did not return valid sign-in information.'))
         },
         auto_select: false,
         cancel_on_tap_outside: true,
@@ -63,20 +63,20 @@ export function GoogleSignInButton({ onCredential, onError, busy = false }: {
           errorHandler.current('')
           if (interactionTimer.current !== null) window.clearTimeout(interactionTimer.current)
           interactionTimer.current = window.setTimeout(() => {
-            errorHandler.current('Google chưa trả về thông tin đăng nhập. Hãy tải lại trang hoặc thử trong cửa sổ InPrivate.')
+            errorHandler.current(text('Google chưa trả về thông tin đăng nhập. Hãy tải lại trang hoặc thử trong cửa sổ riêng tư.', 'Google has not returned sign-in information. Reload the page or try a private window.'))
           }, 30_000)
         },
       })
-    }).catch(error => active && errorHandler.current(error instanceof Error ? error.message : 'Không thể tải đăng nhập Google.'))
+    }).catch(error => active && errorHandler.current(error instanceof Error ? error.message : text('Không thể tải đăng nhập Google.', 'Unable to load Google Sign-In.')))
     return () => {
       active = false
       if (interactionTimer.current !== null) window.clearTimeout(interactionTimer.current)
       interactionTimer.current = null
     }
-  }, [clientId, language])
+  }, [clientId, language, text])
 
   if (!clientId) {
-    return <button type="button" disabled className="google-fallback w-full" title="Cần cấu hình VITE_GOOGLE_CLIENT_ID">
+    return <button type="button" disabled className="google-fallback w-full" title={text('Cần cấu hình VITE_GOOGLE_CLIENT_ID', 'VITE_GOOGLE_CLIENT_ID must be configured')}>
       <span className="google-mark" aria-hidden="true">G</span> {t('auth.google')}
     </button>
   }
