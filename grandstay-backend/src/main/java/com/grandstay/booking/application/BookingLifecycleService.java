@@ -14,10 +14,12 @@ import com.grandstay.booking.domain.BookingStatusPolicy;
 import com.grandstay.booking.domain.EarlyLateFeePolicy;
 import com.grandstay.booking.infrastructure.BookingRepository;
 import com.grandstay.booking.infrastructure.BookingRoomRepository;
+import com.grandstay.customer.infrastructure.CustomerRepository;
 import com.grandstay.room.domain.Room;
 import com.grandstay.room.infrastructure.RoomRepository;
 import com.grandstay.shared.domain.ModelEnums.BookingStatus;
 import com.grandstay.shared.domain.ModelEnums.RoomOperationalStatus;
+import com.grandstay.shared.domain.ModelEnums.IdentityVerificationStatus;
 import com.grandstay.shared.exception.BusinessException;
 import com.grandstay.shared.exception.ErrorCode;
 import org.springframework.stereotype.Service;
@@ -28,6 +30,7 @@ public class BookingLifecycleService {
     private final BookingRepository bookingRepository;
     private final BookingRoomRepository bookingRoomRepository;
     private final RoomRepository roomRepository;
+    private final CustomerRepository customerRepository;
     private final BookingStatusPolicy statusPolicy;
     private final EarlyLateFeePolicy feePolicy;
     private final BillingApplicationService billingService;
@@ -36,6 +39,7 @@ public class BookingLifecycleService {
     public BookingLifecycleService(BookingRepository bookingRepository,
                                    BookingRoomRepository bookingRoomRepository,
                                    RoomRepository roomRepository,
+                                   CustomerRepository customerRepository,
                                    BookingStatusPolicy statusPolicy,
                                    EarlyLateFeePolicy feePolicy,
                                    BillingApplicationService billingService,
@@ -43,6 +47,7 @@ public class BookingLifecycleService {
         this.bookingRepository = bookingRepository;
         this.bookingRoomRepository = bookingRoomRepository;
         this.roomRepository = roomRepository;
+        this.customerRepository = customerRepository;
         this.statusPolicy = statusPolicy;
         this.feePolicy = feePolicy;
         this.billingService = billingService;
@@ -57,6 +62,15 @@ public class BookingLifecycleService {
         }
         Booking booking = locked(bookingId);
         statusPolicy.requireTransition(booking.getStatus(), BookingStatus.CHECKED_IN);
+        if (booking.getCustomerId() != null) {
+            var customer = customerRepository.findById(booking.getCustomerId())
+                    .filter(candidate -> candidate.getDeletedAt() == null)
+                    .orElseThrow(() -> BusinessException.notFound("Customer", booking.getCustomerId()));
+            if (customer.getIdentityVerificationStatus() != IdentityVerificationStatus.VERIFIED) {
+                throw new BusinessException(ErrorCode.IDENTITY_REQUIRED, org.springframework.http.HttpStatus.UNPROCESSABLE_ENTITY,
+                        "Identity verification is required before check-in");
+            }
+        }
         if (!checkInAt.isBefore(booking.getExpectedCheckOutAt())) {
             throw BusinessException.invalid("Check-in must be before expected check-out");
         }

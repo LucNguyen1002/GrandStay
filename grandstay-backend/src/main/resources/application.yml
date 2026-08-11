@@ -112,6 +112,8 @@ grandstay:
       query-ip-address: ${VNPAY_QUERY_IP_ADDRESS:127.0.0.1}
       expiration: ${VNPAY_EXPIRATION:15m}
   security:
+    pii:
+      key: ${PII_ENCRYPTION_KEY:${JWT_SECRET:local-development-pii-key-change-me-32-bytes}}
     allowed-origins: ${ALLOWED_ORIGINS:http://localhost:3000,http://localhost:5173}
     bootstrap-admin:
       enabled: ${ADMIN_BOOTSTRAP_ENABLED:false}

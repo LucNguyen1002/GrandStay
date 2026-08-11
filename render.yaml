@@ -30,6 +30,8 @@ services:
         value: https://grandstay-frontend.vercel.app,http://localhost:3000
       - key: JWT_SECRET
         generateValue: true
+      - key: PII_ENCRYPTION_KEY
+        generateValue: true
       - key: OPENAPI_ENABLED
         value: "false"
       - key: SPRING_MAIN_LAZY_INITIALIZATION

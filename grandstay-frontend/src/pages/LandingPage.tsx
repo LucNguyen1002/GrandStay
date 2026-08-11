@@ -25,12 +25,13 @@ import { defaultAuthenticatedRoute } from '../auth/routes'
 import heroImage from '../assets/grandstay-hero.png'
 import journeyDuringImage from '../assets/journey-during.webp'
 import journeyAfterImage from '../assets/journey-after.webp'
+import { LanguageToggle, useI18n } from '../i18n'
 
 const navigation = [
-  { href: '#phong-nghi', label: 'Phòng nghỉ' },
-  { href: '#trai-nghiem', label: 'Trải nghiệm' },
-  { href: '#tien-nghi', label: 'Tiện nghi' },
-  { href: '#ve-grandstay', label: 'Về GrandStay' },
+  { href: '#phong-nghi', label: 'Phòng nghỉ', labelEn: 'Rooms' },
+  { href: '#trai-nghiem', label: 'Trải nghiệm', labelEn: 'Experience' },
+  { href: '#tien-nghi', label: 'Tiện nghi', labelEn: 'Amenities' },
+  { href: '#ve-grandstay', label: 'Về GrandStay', labelEn: 'About GrandStay' },
 ]
 
 const roomOptions = [
@@ -38,6 +39,7 @@ const roomOptions = [
     eyebrow: '01 · Nghỉ dưỡng',
     title: 'Không gian để thật sự nghỉ ngơi',
     description: 'Thiết kế ấm áp, ánh sáng tự nhiên và từng tiện nghi được chọn lọc để bạn luôn thấy thoải mái như ở nhà.',
+    eyebrowEn: '01 · REST', titleEn: 'A space designed for true rest', descriptionEn: 'Warm design, natural light and carefully selected amenities make every stay feel effortlessly comfortable.',
     icon: BedDouble,
     tone: 'from-[#173b55] to-[#102a43]',
   },
@@ -45,6 +47,7 @@ const roomOptions = [
     eyebrow: '02 · Linh hoạt',
     title: 'Một lựa chọn cho mọi hành trình',
     description: 'Từ chuyến công tác ngắn ngày đến kỳ nghỉ cùng gia đình, GrandStay giúp bạn tìm không gian phù hợp nhanh chóng.',
+    eyebrowEn: '02 · FLEXIBLE', titleEn: 'One choice for every journey', descriptionEn: 'From a short business trip to a family holiday, GrandStay helps you quickly find the right space.',
     icon: KeyRound,
     tone: 'from-[#347466] to-[#24554b]',
   },
@@ -52,16 +55,17 @@ const roomOptions = [
     eyebrow: '03 · An tâm',
     title: 'Trải nghiệm liền mạch từ đầu đến cuối',
     description: 'Thông tin lưu trú rõ ràng, dữ liệu được bảo vệ và đội ngũ luôn sẵn sàng hỗ trợ trong suốt kỳ nghỉ.',
+    eyebrowEn: '03 · PEACE OF MIND', titleEn: 'A seamless stay from start to finish', descriptionEn: 'Clear stay information, protected data and a team ready to support you throughout the journey.',
     icon: ShieldCheck,
     tone: 'from-[#c89a4f] to-[#a8792f]',
   },
 ]
 
 const amenities = [
-  { icon: Wifi, title: 'Kết nối liền mạch', text: 'Không gian làm việc và kết nối ổn định cho cả nghỉ dưỡng lẫn công tác.' },
-  { icon: Coffee, title: 'Khởi đầu thư thái', text: 'Những khoảng nghỉ chậm rãi để mỗi ngày của bạn bắt đầu thật dễ chịu.' },
-  { icon: Waves, title: 'Cân bằng thân tâm', text: 'Một nhịp sống nhẹ nhàng, gần thiên nhiên và tách biệt khỏi ồn ào thường nhật.' },
-  { icon: Headphones, title: 'Hỗ trợ tận tâm', text: 'Đồng hành trước, trong và sau kỳ nghỉ với quy trình rõ ràng, chuyên nghiệp.' },
+  { icon: Wifi, title: 'Kết nối liền mạch', text: 'Không gian làm việc và kết nối ổn định cho cả nghỉ dưỡng lẫn công tác.', titleEn: 'Seamless connection', textEn: 'Reliable connectivity and work-friendly spaces for both leisure and business.' },
+  { icon: Coffee, title: 'Khởi đầu thư thái', text: 'Những khoảng nghỉ chậm rãi để mỗi ngày của bạn bắt đầu thật dễ chịu.', titleEn: 'A relaxed beginning', textEn: 'Thoughtful pauses that help each day begin with calm and comfort.' },
+  { icon: Waves, title: 'Cân bằng thân tâm', text: 'Một nhịp sống nhẹ nhàng, gần thiên nhiên và tách biệt khỏi ồn ào thường nhật.', titleEn: 'Mindful balance', textEn: 'A gentler rhythm close to nature and away from everyday noise.' },
+  { icon: Headphones, title: 'Hỗ trợ tận tâm', text: 'Đồng hành trước, trong và sau kỳ nghỉ với quy trình rõ ràng, chuyên nghiệp.', titleEn: 'Thoughtful support', textEn: 'Professional assistance before, during and after every stay.' },
 ]
 
 const journeySlides = [
@@ -97,6 +101,12 @@ const journeySlides = [
   },
 ]
 
+const journeyEnglish = [
+  { eyebrow: 'Before your stay', title: 'Find the right space in just a few steps.', text: 'Your dates, guest count and preferences stay at the center, keeping every choice simple and clear.', quote: 'Relaxation begins the moment you start planning.', points: ['Quick room search', 'Easy comparison', 'Flexible choices', 'Protected account'], imageAlt: 'A warm GrandStay guest room opening to a nature-facing balcony' },
+  { eyebrow: 'During your stay', title: 'Every experience follows your rhythm.', text: 'From check-in to every request along the way, one consistent process helps our team serve you quickly and accurately.', quote: 'True luxury is having what you need at exactly the right moment.', points: ['Convenient check-in', 'Continuous support', 'Consistent service', 'Private space'], imageAlt: 'A relaxing poolside space at GrandStay' },
+  { eyebrow: 'After your stay', title: 'A gentle goodbye, a lasting memory.', text: 'Transparent information and a seamless experience help you leave with confidence and look forward to returning.', quote: 'A beautiful stay always leaves you wanting to return.', points: ['Clear check-out', 'Saved stay information', 'Thoughtful care', 'Ready to return'], imageAlt: 'GrandStay lobby opening onto a green walkway after check-out' },
+]
+
 function dateInputValue(date: Date) {
   const year = date.getFullYear()
   const month = String(date.getMonth() + 1).padStart(2, '0')
@@ -111,6 +121,7 @@ function nextDate(value: string) {
 }
 
 export function LandingPage() {
+  const { language } = useI18n()
   const navigate = useNavigate()
   const { isAuthenticated, user } = useAuth()
   const pageRef = useRef<HTMLElement>(null)
@@ -124,7 +135,7 @@ export function LandingPage() {
   const [showBackToTop, setShowBackToTop] = useState(false)
   const [reduceMotion, setReduceMotion] = useState(() => window.matchMedia('(prefers-reduced-motion: reduce)').matches)
   const systemRoute = user ? defaultAuthenticatedRoute(user) : '/login'
-  const journey = journeySlides[activeJourney]
+  const journey = language === 'en' ? { ...journeySlides[activeJourney], ...journeyEnglish[activeJourney] } : journeySlides[activeJourney]
 
   useEffect(() => {
     // Wake the free Render instance while visitors explore the landing page.
@@ -223,14 +234,15 @@ export function LandingPage() {
             </span>
           </Link>
 
-          <nav aria-label="Điều hướng trang chủ" className="hidden items-center gap-8 lg:flex">
-            {navigation.map(item => <a key={item.href} href={item.href} className="landing-nav-link relative py-2 text-sm font-semibold text-white/78 transition hover:text-gold-soft">{item.label}</a>)}
+          <nav aria-label={language === 'vi' ? 'Điều hướng trang chủ' : 'Main navigation'} className="hidden items-center gap-8 lg:flex">
+            {navigation.map(item => <a key={item.href} href={item.href} className="landing-nav-link relative py-2 text-sm font-semibold text-white/78 transition hover:text-gold-soft">{language === 'en' ? item.labelEn : item.label}</a>)}
           </nav>
 
           <div className="hidden items-center gap-3 sm:flex">
-            {!isAuthenticated && <Link to="/login" className="rounded-xl px-4 py-2.5 text-sm font-bold text-white/85 transition hover:bg-white/8 hover:text-white">Đăng nhập</Link>}
+            <LanguageToggle compact className="!border-white/20 !bg-white/10 !text-white shadow-none"/>
+            {!isAuthenticated && <Link to="/login" className="rounded-xl px-4 py-2.5 text-sm font-bold text-white/85 transition hover:bg-white/8 hover:text-white">{language === 'vi' ? 'Đăng nhập' : 'Sign in'}</Link>}
             <Link to={systemRoute} className="landing-arrow-button inline-flex min-h-11 items-center gap-2 rounded-xl bg-gold px-5 py-2.5 text-sm font-extrabold text-white shadow-lg shadow-black/15 transition hover:-translate-y-0.5 hover:bg-[#c99a4d]">
-              {isAuthenticated ? 'Vào hệ thống' : 'Đặt phòng ngay'}<ArrowRight size={16}/>
+              {isAuthenticated ? (language === 'vi' ? 'Vào hệ thống' : 'Open dashboard') : (language === 'vi' ? 'Đặt phòng ngay' : 'Book now')}<ArrowRight size={16}/>
             </Link>
           </div>
 
@@ -239,12 +251,13 @@ export function LandingPage() {
           </button>
         </div>
         {menuOpen && <div className="border-t border-white/10 bg-ink/95 px-5 py-5 backdrop-blur-xl sm:hidden">
+          <div className="mb-3 flex justify-end"><LanguageToggle className="!border-white/20 !bg-white/10 !text-white shadow-none"/></div>
           <nav className="grid gap-1">
-            {navigation.map(item => <a key={item.href} href={item.href} onClick={() => setMenuOpen(false)} className="rounded-xl px-3 py-3 text-sm font-semibold text-white/80 hover:bg-white/8 hover:text-white">{item.label}</a>)}
+            {navigation.map(item => <a key={item.href} href={item.href} onClick={() => setMenuOpen(false)} className="rounded-xl px-3 py-3 text-sm font-semibold text-white/80 hover:bg-white/8 hover:text-white">{language === 'en' ? item.labelEn : item.label}</a>)}
           </nav>
           <div className="mt-4 grid grid-cols-2 gap-3 border-t border-white/10 pt-4">
-            {!isAuthenticated && <Link to="/login" className="grid min-h-11 place-items-center rounded-xl border border-white/20 text-sm font-bold">Đăng nhập</Link>}
-            <Link to={systemRoute} className={`grid min-h-11 place-items-center rounded-xl bg-gold px-3 text-sm font-bold ${isAuthenticated ? 'col-span-2' : ''}`}>{isAuthenticated ? 'Vào hệ thống' : 'Đặt phòng'}</Link>
+            {!isAuthenticated && <Link to="/login" className="grid min-h-11 place-items-center rounded-xl border border-white/20 text-sm font-bold">{language === 'vi' ? 'Đăng nhập' : 'Sign in'}</Link>}
+            <Link to={systemRoute} className={`grid min-h-11 place-items-center rounded-xl bg-gold px-3 text-sm font-bold ${isAuthenticated ? 'col-span-2' : ''}`}>{isAuthenticated ? (language === 'vi' ? 'Vào hệ thống' : 'Dashboard') : (language === 'vi' ? 'Đặt phòng' : 'Book')}</Link>
           </div>
         </div>}
       </header>
@@ -252,22 +265,22 @@ export function LandingPage() {
       <div className="relative z-10 mx-auto flex min-h-[610px] max-w-[1440px] items-center px-5 pb-28 pt-14 sm:px-8 lg:min-h-[660px] lg:px-12 lg:pb-32">
         <div className="max-w-3xl">
           <div className="landing-hero-kicker mb-6 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/8 px-4 py-2 text-xs font-bold uppercase tracking-[.2em] text-gold-soft backdrop-blur-md">
-            <Sparkles size={15}/> Kỳ nghỉ theo cách của riêng bạn
+            <Sparkles size={15}/> {language === 'vi' ? 'Kỳ nghỉ theo cách của riêng bạn' : 'A stay shaped around you'}
           </div>
           <h1 className="landing-hero-title max-w-3xl font-display text-[clamp(3.2rem,7vw,6.75rem)] font-black leading-[.92] tracking-[-.055em] text-white">
-            Chạm vào sự <span className="font-brand font-normal italic text-gold-soft">thảnh thơi.</span>
+            {language === 'vi' ? <>Chạm vào sự <span className="font-brand font-normal italic text-gold-soft">thảnh thơi.</span></> : <>Step into <span className="font-brand font-normal italic text-gold-soft">effortless calm.</span></>}
           </h1>
           <p className="landing-hero-description mt-7 max-w-xl text-base leading-8 text-slate-200 sm:text-lg">
-            Một nơi dừng chân tinh tế, nơi từng không gian được tạo nên để bạn nghỉ sâu hơn, kết nối nhiều hơn và lưu giữ những khoảnh khắc đáng nhớ.
+            {language === 'vi' ? 'Một nơi dừng chân tinh tế, nơi từng không gian được tạo nên để bạn nghỉ sâu hơn, kết nối nhiều hơn và lưu giữ những khoảnh khắc đáng nhớ.' : 'A refined place to stay, where every space helps you rest more deeply, connect more meaningfully and preserve memorable moments.'}
           </p>
           <div className="landing-hero-actions mt-9 flex flex-wrap items-center gap-5">
-            <a href="#dat-phong" className="landing-arrow-button inline-flex min-h-13 items-center gap-2 rounded-xl bg-gold px-6 text-sm font-extrabold text-white shadow-xl shadow-black/20 transition hover:-translate-y-0.5 hover:bg-[#ca9a4b]">Khám phá kỳ nghỉ<ArrowRight size={17}/></a>
-            <a href="#phong-nghi" className="group inline-flex items-center gap-2 text-sm font-bold text-white/85 transition hover:text-white">Xem không gian phòng <span className="grid size-9 place-items-center rounded-full border border-white/25 transition group-hover:border-gold-soft group-hover:text-gold-soft"><ChevronDown size={16}/></span></a>
+            <a href="#dat-phong" className="landing-arrow-button inline-flex min-h-13 items-center gap-2 rounded-xl bg-gold px-6 text-sm font-extrabold text-white shadow-xl shadow-black/20 transition hover:-translate-y-0.5 hover:bg-[#ca9a4b]">{language === 'vi' ? 'Khám phá kỳ nghỉ' : 'Explore your stay'}<ArrowRight size={17}/></a>
+            <a href="#phong-nghi" className="group inline-flex items-center gap-2 text-sm font-bold text-white/85 transition hover:text-white">{language === 'vi' ? 'Xem không gian phòng' : 'View our rooms'} <span className="grid size-9 place-items-center rounded-full border border-white/25 transition group-hover:border-gold-soft group-hover:text-gold-soft"><ChevronDown size={16}/></span></a>
           </div>
           <div className="landing-hero-trust mt-11 flex flex-wrap gap-x-7 gap-y-3 text-xs font-semibold text-white/72">
-            <span className="flex items-center gap-2"><Check size={15} className="text-gold-soft"/>Quy trình minh bạch</span>
-            <span className="flex items-center gap-2"><Check size={15} className="text-gold-soft"/>Dữ liệu được bảo vệ</span>
-            <span className="flex items-center gap-2"><Check size={15} className="text-gold-soft"/>Hỗ trợ tận tâm</span>
+            <span className="flex items-center gap-2"><Check size={15} className="text-gold-soft"/>{language === 'vi' ? 'Quy trình minh bạch' : 'Transparent process'}</span>
+            <span className="flex items-center gap-2"><Check size={15} className="text-gold-soft"/>{language === 'vi' ? 'Dữ liệu được bảo vệ' : 'Protected data'}</span>
+            <span className="flex items-center gap-2"><Check size={15} className="text-gold-soft"/>{language === 'vi' ? 'Hỗ trợ tận tâm' : 'Thoughtful support'}</span>
           </div>
         </div>
       </div>
@@ -278,51 +291,48 @@ export function LandingPage() {
         <label className="landing-search-field group flex min-h-25 items-center gap-4 border-b border-slate-100 px-5 py-5 transition hover:bg-amber-50/35 sm:px-7 lg:border-b-0 lg:border-r">
           <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-forest/8 text-forest"><CalendarDays size={20}/></span>
           <span className="min-w-0 flex-1">
-            <span className="mb-1 block text-[10px] font-extrabold uppercase tracking-[.16em] text-ink-soft">Nhận phòng</span>
-            <input type="date" value={checkIn} min={today} onChange={event => changeCheckIn(event.target.value)} className="w-full bg-transparent text-sm font-bold text-ink outline-none" aria-label="Ngày nhận phòng" />
+            <span className="mb-1 block text-[10px] font-extrabold uppercase tracking-[.16em] text-ink-soft">{language === 'vi' ? 'Nhận phòng' : 'Check-in'}</span>
+            <input type="date" value={checkIn} min={today} onChange={event => changeCheckIn(event.target.value)} className="w-full bg-transparent text-sm font-bold text-ink outline-none" aria-label={language === 'vi' ? 'Ngày nhận phòng' : 'Check-in date'} />
           </span>
         </label>
         <label className="landing-search-field group flex min-h-25 items-center gap-4 border-b border-slate-100 px-5 py-5 transition hover:bg-amber-50/35 sm:px-7 lg:border-b-0 lg:border-r">
           <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-gold/10 text-gold"><Clock3 size={20}/></span>
           <span className="min-w-0 flex-1">
-            <span className="mb-1 block text-[10px] font-extrabold uppercase tracking-[.16em] text-ink-soft">Trả phòng</span>
-            <input type="date" value={checkOut} min={nextDate(checkIn)} onChange={event => setCheckOut(event.target.value)} className="w-full bg-transparent text-sm font-bold text-ink outline-none" aria-label="Ngày trả phòng" />
+            <span className="mb-1 block text-[10px] font-extrabold uppercase tracking-[.16em] text-ink-soft">{language === 'vi' ? 'Trả phòng' : 'Check-out'}</span>
+            <input type="date" value={checkOut} min={nextDate(checkIn)} onChange={event => setCheckOut(event.target.value)} className="w-full bg-transparent text-sm font-bold text-ink outline-none" aria-label={language === 'vi' ? 'Ngày trả phòng' : 'Check-out date'} />
           </span>
         </label>
         <label className="landing-search-field group flex min-h-25 items-center gap-4 border-b border-slate-100 px-5 py-5 transition hover:bg-amber-50/35 sm:px-7 lg:border-b-0 lg:border-r">
           <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-ink/6 text-ink"><UsersRound size={20}/></span>
           <span className="min-w-0 flex-1">
-            <span className="mb-1 block text-[10px] font-extrabold uppercase tracking-[.16em] text-ink-soft">Khách lưu trú</span>
-            <select value={guests} onChange={event => setGuests(event.target.value)} className="w-full appearance-none bg-transparent text-sm font-bold text-ink outline-none" aria-label="Số khách">
-              <option value="1">1 khách</option>
-              <option value="2">2 khách</option>
-              <option value="3">3 khách</option>
-              <option value="4">4 khách</option>
-              <option value="5">5+ khách</option>
+            <span className="mb-1 block text-[10px] font-extrabold uppercase tracking-[.16em] text-ink-soft">{language === 'vi' ? 'Khách lưu trú' : 'Guests'}</span>
+            <select value={guests} onChange={event => setGuests(event.target.value)} className="w-full appearance-none bg-transparent text-sm font-bold text-ink outline-none" aria-label={language === 'vi' ? 'Số khách' : 'Guest count'}>
+              {[1, 2, 3, 4].map(count => <option key={count} value={count}>{count} {language === 'vi' ? 'khách' : count === 1 ? 'guest' : 'guests'}</option>)}
+              <option value="5">5+ {language === 'vi' ? 'khách' : 'guests'}</option>
             </select>
           </span>
         </label>
         <div className="flex items-stretch p-3 sm:p-4">
           <button type="submit" className="landing-arrow-button inline-flex min-h-16 w-full items-center justify-center gap-2 rounded-xl bg-ink px-7 text-sm font-extrabold text-white shadow-lg shadow-ink/15 transition hover:-translate-y-0.5 hover:bg-[#183f61] lg:min-w-48">
-            Tìm phòng phù hợp<ArrowRight size={17}/>
+            {language === 'vi' ? 'Tìm phòng phù hợp' : 'Find a room'}<ArrowRight size={17}/>
           </button>
         </div>
       </form>
-      {!isAuthenticated && <p className="mt-3 text-center text-xs text-ink-soft">Bạn sẽ được yêu cầu đăng nhập để xem thông tin phòng phù hợp.</p>}
+      {!isAuthenticated && <p className="mt-3 text-center text-xs text-ink-soft">{language === 'vi' ? 'Bạn sẽ được yêu cầu đăng nhập để xem thông tin phòng phù hợp.' : 'You will be asked to sign in before viewing matching rooms.'}</p>}
     </section>
 
     <section id="phong-nghi" className="scroll-mt-24 px-5 pb-24 pt-28 sm:px-8 lg:pb-32 lg:pt-36">
       <div className="mx-auto max-w-[1240px]">
         <div className="grid items-end gap-8 lg:grid-cols-[1fr_.75fr]">
           <div data-reveal="left">
-            <p className="text-xs font-extrabold uppercase tracking-[.22em] text-gold">Không gian GrandStay</p>
-            <h2 className="mt-4 max-w-3xl font-display text-4xl font-black leading-[1.05] tracking-[-.04em] sm:text-5xl lg:text-6xl">Được thiết kế cho cách bạn muốn tận hưởng.</h2>
+            <p className="text-xs font-extrabold uppercase tracking-[.22em] text-gold">{language === 'vi' ? 'Không gian GrandStay' : 'GrandStay spaces'}</p>
+            <h2 className="mt-4 max-w-3xl font-display text-4xl font-black leading-[1.05] tracking-[-.04em] sm:text-5xl lg:text-6xl">{language === 'vi' ? 'Được thiết kế cho cách bạn muốn tận hưởng.' : 'Designed around the way you want to stay.'}</h2>
           </div>
-          <p data-reveal="right" className="max-w-xl text-sm leading-7 text-ink-soft lg:justify-self-end">Không chỉ là một căn phòng. Đó là khoảng không riêng tư để nghỉ ngơi, làm việc, sum họp và tận hưởng chuyến đi theo đúng nhịp của bạn.</p>
+          <p data-reveal="right" className="max-w-xl text-sm leading-7 text-ink-soft lg:justify-self-end">{language === 'vi' ? 'Không chỉ là một căn phòng. Đó là khoảng không riêng tư để nghỉ ngơi, làm việc, sum họp và tận hưởng chuyến đi theo đúng nhịp của bạn.' : 'More than a room: a private space to rest, work, reconnect and enjoy the journey at your own pace.'}</p>
         </div>
 
         <div className="mt-14 grid items-stretch gap-5 lg:grid-cols-3">
-          {roomOptions.map(({ eyebrow, title, description, icon: Icon, tone }, index) => <article key={title} data-reveal="feature-card" style={{ '--reveal-delay': `${index * 90}ms` } as CSSProperties} className={`landing-feature-card group relative h-full min-h-[390px] overflow-hidden rounded-[1.75rem] bg-gradient-to-br ${tone} p-7 text-white shadow-[0_18px_45px_rgba(16,42,67,.12)] sm:p-8`}>
+          {roomOptions.map((option, index) => { const { icon: Icon, tone } = option; const eyebrow = language === 'en' ? option.eyebrowEn : option.eyebrow; const title = language === 'en' ? option.titleEn : option.title; const description = language === 'en' ? option.descriptionEn : option.description; return <article key={title} data-reveal="feature-card" style={{ '--reveal-delay': `${index * 90}ms` } as CSSProperties} className={`landing-feature-card group relative h-full min-h-[390px] overflow-hidden rounded-[1.75rem] bg-gradient-to-br ${tone} p-7 text-white shadow-[0_18px_45px_rgba(16,42,67,.12)] sm:p-8`}>
             <div className="absolute -right-12 -top-12 size-52 rounded-full border border-white/10 transition duration-700 group-hover:scale-110" />
             <div className="absolute -bottom-20 -left-16 size-60 rounded-full bg-white/5 blur-2xl" />
             <div className="relative flex h-full min-h-[326px] flex-col">
@@ -335,7 +345,7 @@ export function LandingPage() {
                 <p className="mt-4 text-sm leading-7 text-white/72">{description}</p>
               </div>
             </div>
-          </article>)}
+          </article>})}
         </div>
       </div>
     </section>
@@ -354,7 +364,7 @@ export function LandingPage() {
           {journeySlides.map((slide, index) => <img
             key={slide.image}
             src={slide.image}
-            alt={activeJourney === index ? slide.imageAlt : ''}
+            alt={activeJourney === index ? (language === 'en' ? journeyEnglish[index].imageAlt : slide.imageAlt) : ''}
             aria-hidden={activeJourney !== index}
             className={`landing-experience-image absolute inset-0 size-full object-cover ${activeJourney === index ? 'is-active' : ''}`}
             style={{ objectPosition: slide.position }}
@@ -372,7 +382,7 @@ export function LandingPage() {
 
         <div data-reveal="right" className="lg:pl-10">
           <div key={`content-${activeJourney}`} className="landing-slide-copy">
-            <p className="text-xs font-extrabold uppercase tracking-[.22em] text-gold-soft">{journey.eyebrow} · Trọn vẹn từng khoảnh khắc</p>
+            <p className="text-xs font-extrabold uppercase tracking-[.22em] text-gold-soft">{journey.eyebrow} · {language === 'vi' ? 'Trọn vẹn từng khoảnh khắc' : 'Every moment, considered'}</p>
             <h2 className="mt-4 font-display text-4xl font-black leading-[1.05] tracking-[-.04em] sm:text-5xl">{journey.title}</h2>
             <p className="mt-6 max-w-xl text-sm leading-7 text-slate-300">{journey.text}</p>
             <div className="mt-9 grid gap-4 sm:grid-cols-2">
@@ -381,13 +391,13 @@ export function LandingPage() {
           </div>
 
           <div className="mt-9 flex flex-wrap items-center justify-between gap-5">
-            <div className="flex items-center gap-2" role="tablist" aria-label="Các giai đoạn trải nghiệm">
+            <div className="flex items-center gap-2" role="tablist" aria-label={language === 'vi' ? 'Các giai đoạn trải nghiệm' : 'Stay journey stages'}>
               {journeySlides.map((slide, index) => <button
                 key={slide.eyebrow}
                 type="button"
                 role="tab"
                 aria-selected={activeJourney === index}
-                aria-label={`Xem ${slide.eyebrow.toLowerCase()}`}
+                aria-label={`${language === 'vi' ? 'Xem' : 'View'} ${(language === 'en' ? journeyEnglish[index].eyebrow : slide.eyebrow).toLowerCase()}`}
                 onClick={() => showJourney(index)}
                 className={`landing-slide-dot relative h-1.5 overflow-hidden rounded-full transition-[width,background] duration-500 ${activeJourney === index ? 'w-14 bg-white/22' : 'w-7 bg-white/18 hover:bg-white/35'}`}
               >
@@ -395,8 +405,8 @@ export function LandingPage() {
               </button>)}
             </div>
             <div className="flex gap-2">
-              <button type="button" aria-label="Trải nghiệm trước" onClick={() => showJourney(activeJourney - 1)} className="landing-slider-arrow grid size-11 place-items-center rounded-full border border-white/15 text-white/80 transition hover:border-gold-soft hover:bg-gold hover:text-white"><ArrowLeft size={17}/></button>
-              <button type="button" aria-label="Trải nghiệm tiếp theo" onClick={() => showJourney(activeJourney + 1)} className="landing-slider-arrow grid size-11 place-items-center rounded-full border border-white/15 text-white/80 transition hover:border-gold-soft hover:bg-gold hover:text-white"><ArrowRight size={17}/></button>
+              <button type="button" aria-label={language === 'vi' ? 'Trải nghiệm trước' : 'Previous slide'} onClick={() => showJourney(activeJourney - 1)} className="landing-slider-arrow grid size-11 place-items-center rounded-full border border-white/15 text-white/80 transition hover:border-gold-soft hover:bg-gold hover:text-white"><ArrowLeft size={17}/></button>
+              <button type="button" aria-label={language === 'vi' ? 'Trải nghiệm tiếp theo' : 'Next slide'} onClick={() => showJourney(activeJourney + 1)} className="landing-slider-arrow grid size-11 place-items-center rounded-full border border-white/15 text-white/80 transition hover:border-gold-soft hover:bg-gold hover:text-white"><ArrowRight size={17}/></button>
             </div>
           </div>
         </div>
@@ -406,16 +416,16 @@ export function LandingPage() {
     <section id="tien-nghi" className="scroll-mt-24 px-5 py-24 sm:px-8 lg:py-32">
       <div className="mx-auto max-w-[1240px]">
         <div data-reveal="up" className="mx-auto max-w-2xl text-center">
-          <p className="text-xs font-extrabold uppercase tracking-[.22em] text-gold">Tận tâm trong từng chi tiết</p>
-          <h2 className="mt-4 font-display text-4xl font-black tracking-[-.04em] sm:text-5xl">Thoải mái theo một cách rất riêng.</h2>
-          <p className="mt-5 text-sm leading-7 text-ink-soft">Mọi điểm chạm được cân nhắc để thời gian của bạn tại GrandStay luôn dễ chịu, chủ động và đáng nhớ.</p>
+          <p className="text-xs font-extrabold uppercase tracking-[.22em] text-gold">{language === 'vi' ? 'Tận tâm trong từng chi tiết' : 'Thoughtful in every detail'}</p>
+          <h2 className="mt-4 font-display text-4xl font-black tracking-[-.04em] sm:text-5xl">{language === 'vi' ? 'Thoải mái theo một cách rất riêng.' : 'Comfort, in a way that feels personal.'}</h2>
+          <p className="mt-5 text-sm leading-7 text-ink-soft">{language === 'vi' ? 'Mọi điểm chạm được cân nhắc để thời gian của bạn tại GrandStay luôn dễ chịu, chủ động và đáng nhớ.' : 'Every touchpoint is considered so your time at GrandStay feels easy, flexible and memorable.'}</p>
         </div>
         <div className="mt-14 grid gap-px overflow-hidden rounded-[1.75rem] border border-slate-200 bg-slate-200 sm:grid-cols-2 lg:grid-cols-4">
-          {amenities.map(({ icon: Icon, title, text }, index) => <article key={title} data-reveal="up" style={{ '--reveal-delay': `${index * 80}ms` } as CSSProperties} className="landing-amenity-card group min-h-72 bg-white p-7 transition hover:bg-[#fffcf4] sm:p-8">
+          {amenities.map((amenity, index) => { const { icon: Icon } = amenity; const title = language === 'en' ? amenity.titleEn : amenity.title; const text = language === 'en' ? amenity.textEn : amenity.text; return <article key={title} data-reveal="up" style={{ '--reveal-delay': `${index * 80}ms` } as CSSProperties} className="landing-amenity-card group min-h-72 bg-white p-7 transition hover:bg-[#fffcf4] sm:p-8">
             <span className="grid size-13 place-items-center rounded-2xl bg-forest/8 text-forest transition group-hover:-translate-y-1 group-hover:bg-forest group-hover:text-white"><Icon size={23}/></span>
             <h3 className="mt-8 font-display text-xl font-black">{title}</h3>
             <p className="mt-3 text-sm leading-7 text-ink-soft">{text}</p>
-          </article>)}
+          </article>})}
         </div>
       </div>
     </section>
@@ -423,11 +433,11 @@ export function LandingPage() {
     <section id="ve-grandstay" className="scroll-mt-24 px-5 pb-24 sm:px-8 lg:pb-32">
       <div data-reveal="up" className="landing-cta mx-auto max-w-[1240px] overflow-hidden rounded-[2rem] bg-gold px-6 py-14 text-white shadow-[0_24px_70px_rgba(153,106,39,.2)] sm:px-12 lg:flex lg:items-center lg:justify-between lg:px-16 lg:py-16">
         <div className="max-w-2xl">
-          <p className="text-xs font-extrabold uppercase tracking-[.22em] text-white/70">GrandStay chờ đón bạn</p>
-          <h2 className="mt-4 font-display text-4xl font-black leading-tight tracking-[-.04em] sm:text-5xl">Một kỳ nghỉ đáng nhớ bắt đầu từ đây.</h2>
-          <p className="mt-5 max-w-xl text-sm leading-7 text-white/80">Chọn ngày lưu trú của bạn và để GrandStay giúp hành trình trở nên đơn giản hơn ngay từ bước đầu tiên.</p>
+          <p className="text-xs font-extrabold uppercase tracking-[.22em] text-white/70">{language === 'vi' ? 'GrandStay chờ đón bạn' : 'GrandStay awaits'}</p>
+          <h2 className="mt-4 font-display text-4xl font-black leading-tight tracking-[-.04em] sm:text-5xl">{language === 'vi' ? 'Một kỳ nghỉ đáng nhớ bắt đầu từ đây.' : 'A memorable stay begins here.'}</h2>
+          <p className="mt-5 max-w-xl text-sm leading-7 text-white/80">{language === 'vi' ? 'Chọn ngày lưu trú của bạn và để GrandStay giúp hành trình trở nên đơn giản hơn ngay từ bước đầu tiên.' : 'Choose your dates and let GrandStay make the journey simpler from the very first step.'}</p>
         </div>
-        <a href="#dat-phong" className="landing-arrow-button relative mt-8 inline-flex min-h-13 shrink-0 items-center gap-2 rounded-xl bg-white px-6 text-sm font-extrabold text-ink shadow-lg transition hover:-translate-y-0.5 lg:mt-0">Tìm phòng ngay<ArrowRight size={17}/></a>
+        <a href="#dat-phong" className="landing-arrow-button relative mt-8 inline-flex min-h-13 shrink-0 items-center gap-2 rounded-xl bg-white px-6 text-sm font-extrabold text-ink shadow-lg transition hover:-translate-y-0.5 lg:mt-0">{language === 'vi' ? 'Tìm phòng ngay' : 'Find a room'}<ArrowRight size={17}/></a>
       </div>
     </section>
 
@@ -438,16 +448,16 @@ export function LandingPage() {
           <span><span className="block font-brand text-lg font-bold">GrandStay</span><span className="text-[9px] font-bold uppercase tracking-[.25em] text-ink-soft">Stay beautifully</span></span>
         </Link>
         <nav aria-label="Điều hướng cuối trang" className="flex flex-wrap gap-x-6 gap-y-3 text-xs font-semibold text-ink-soft">
-          {navigation.map(item => <a key={item.href} href={item.href} className="hover:text-ink">{item.label}</a>)}
-          <Link to="/login" className="hover:text-ink">Đăng nhập</Link>
+          {navigation.map(item => <a key={item.href} href={item.href} className="hover:text-ink">{language === 'en' ? item.labelEn : item.label}</a>)}
+          <Link to="/login" className="hover:text-ink">{language === 'vi' ? 'Đăng nhập' : 'Sign in'}</Link>
         </nav>
-        <p className="text-xs text-ink-soft">© {new Date().getFullYear()} GrandStay. Mọi quyền được bảo lưu.</p>
+        <p className="text-xs text-ink-soft">© {new Date().getFullYear()} GrandStay. {language === 'vi' ? 'Mọi quyền được bảo lưu.' : 'All rights reserved.'}</p>
       </div>
     </footer>
 
     <button
       type="button"
-      aria-label="Quay lại đầu trang"
+      aria-label={language === 'vi' ? 'Quay lại đầu trang' : 'Back to top'}
       aria-hidden={!showBackToTop}
       tabIndex={showBackToTop ? 0 : -1}
       onClick={scrollToTop}

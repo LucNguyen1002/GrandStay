@@ -1,10 +1,12 @@
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { BedDouble, CalendarClock, ChevronRight, RefreshCw } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
+import { BedDouble, CalendarClock, ChevronRight, RefreshCw, SlidersHorizontal, Sparkles, UsersRound } from 'lucide-react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { api, errorMessage } from '../api/client'
-import type { RoomMatrix } from '../api/types'
+import type { AmenityView, Page, RatePlan, RoomMatrix, RoomType } from '../api/types'
 import { Badge, Button, Card, Empty, ErrorState, Loading, PageHeader, statusTone } from '../components/ui'
 import { useAuth } from '../auth/AuthProvider'
+import { useI18n } from '../i18n'
 
 const labels: Record<string, string> = {
   AVAILABLE: 'Sẵn sàng',
@@ -27,8 +29,10 @@ const dots: Record<string, string> = {
 export function RoomsPage() {
   const navigate = useNavigate()
   const { can, hasRole } = useAuth()
+  const customerDiscovery = hasRole('CUSTOMER') && !can('booking:read')
   const canCreateBooking = can('booking:write') || hasRole('CUSTOMER')
-  const query = useQuery({ queryKey: ['room-matrix'], queryFn: () => api.get<RoomMatrix[]>('/rooms/matrix').then(response => response.data), refetchInterval: 60_000 })
+  const query = useQuery({ queryKey: ['room-matrix'], enabled: !customerDiscovery, queryFn: () => api.get<RoomMatrix[]>('/rooms/matrix').then(response => response.data), refetchInterval: 60_000 })
+  if (customerDiscovery) return <CustomerRoomDiscovery />
   if (query.isLoading) return <Loading />
   if (query.error) return <ErrorState message={errorMessage(query.error)} onRetry={() => void query.refetch()} />
 
@@ -74,5 +78,54 @@ export function RoomsPage() {
       </Card>)}
     </div>
     {!rooms.length && <Card><Empty text="Chưa có phòng trong danh mục."/></Card>}
+  </>
+}
+
+function CustomerRoomDiscovery() {
+  const { language, t, money } = useI18n()
+  const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const [filters, setFilters] = useState({ adults: searchParams.get('guests') ?? '1', children: '0', maxNightly: '', amenityId: '' })
+  const catalog = useQuery({
+    queryKey: ['room-discovery-catalog'],
+    queryFn: async () => {
+      const [types, rates, amenities] = await Promise.all([
+        api.get<Page<RoomType>>('/room-types', { params: { size: 100 } }),
+        api.get<Page<RatePlan>>('/rate-plans', { params: { size: 200 } }),
+        api.get<Page<AmenityView>>('/amenities', { params: { size: 100 } }),
+      ])
+      return { types: types.data.content, rates: rates.data.content, amenities: amenities.data.content }
+    },
+  })
+  if (catalog.isLoading) return <Loading />
+  if (catalog.error || !catalog.data) return <ErrorState message={errorMessage(catalog.error)} onRetry={() => void catalog.refetch()} />
+  const adults = Math.max(1, Number(filters.adults) || 1)
+  const children = Math.max(0, Number(filters.children) || 0)
+  const maxNightly = Number(filters.maxNightly) || Number.POSITIVE_INFINITY
+  const results = catalog.data.types.map((roomType, index) => {
+    const rates = catalog.data.rates.filter(rate => rate.roomTypeId === roomType.id && rate.active)
+    const nightly = rates.find(rate => rate.pricingUnit === 'NIGHTLY') ?? rates.sort((left, right) => Number(left.rate) - Number(right.rate))[0]
+    const amenityNames = catalog.data.amenities.filter(item => item.roomTypes.some(assignment => assignment.roomTypeId === roomType.id)).map(item => item.amenity.name)
+    return { roomType, nightly, amenityNames, index }
+  }).filter(item => item.roomType.capacityAdults >= adults && item.roomType.capacityChildren >= children
+    && Number(item.nightly?.rate ?? item.roomType.baseNightlyRate) <= maxNightly
+    && (!filters.amenityId || catalog.data.amenities.find(item => item.amenity.id === filters.amenityId)?.roomTypes.some(assignment => assignment.roomTypeId === item.roomType.id)))
+  const startBooking = (roomTypeId: string) => {
+    const params = new URLSearchParams({ new: '1', roomTypeId })
+    for (const key of ['checkIn', 'checkOut', 'guests']) { const value = searchParams.get(key); if (value) params.set(key, value) }
+    navigate(`/bookings?${params}`)
+  }
+  return <>
+    <PageHeader title={t('rooms.title.customer')} description={t('rooms.description.customer')} />
+    <Card className="mb-5">
+      <div className="mb-4 flex items-center gap-2"><SlidersHorizontal size={18}/><h2 className="font-display text-lg font-bold">{language === 'vi' ? 'Nhu cầu lưu trú' : 'Stay preferences'}</h2></div>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4"><label><span className="label">{language === 'vi' ? 'Người lớn' : 'Adults'}</span><input className="field" type="number" min={1} max={10} value={filters.adults} onChange={event => setFilters(previous => ({ ...previous, adults: event.target.value }))}/></label><label><span className="label">{language === 'vi' ? 'Trẻ em' : 'Children'}</span><input className="field" type="number" min={0} max={10} value={filters.children} onChange={event => setFilters(previous => ({ ...previous, children: event.target.value }))}/></label><label><span className="label">{language === 'vi' ? 'Giá tối đa mỗi đêm' : 'Maximum nightly rate'}</span><input className="field" type="number" min={0} step={50000} placeholder={language === 'vi' ? 'Không giới hạn' : 'No limit'} value={filters.maxNightly} onChange={event => setFilters(previous => ({ ...previous, maxNightly: event.target.value }))}/></label><label><span className="label">{language === 'vi' ? 'Tiện nghi mong muốn' : 'Preferred amenity'}</span><select className="field" value={filters.amenityId} onChange={event => setFilters(previous => ({ ...previous, amenityId: event.target.value }))}><option value="">{language === 'vi' ? 'Tất cả' : 'All'}</option>{catalog.data.amenities.map(item => <option key={item.amenity.id} value={item.amenity.id}>{item.amenity.name}</option>)}</select></label></div>
+    </Card>
+    <div className="grid gap-5 lg:grid-cols-2">{results.map((item, visibleIndex) => {
+      const styles = ['from-sky-950 via-sky-900 to-cyan-800', 'from-emerald-950 via-emerald-900 to-teal-700', 'from-amber-700 via-orange-700 to-rose-700', 'from-violet-950 via-indigo-900 to-blue-800']
+      const rate = Number(item.nightly?.rate ?? item.roomType.baseNightlyRate)
+      return <article key={item.roomType.id} className={`group relative min-h-80 overflow-hidden rounded-[2rem] bg-gradient-to-br ${styles[visibleIndex % styles.length]} p-6 text-white shadow-xl transition duration-500 hover:-translate-y-1 hover:shadow-2xl sm:p-8`}><span className="absolute -right-16 -top-16 size-64 rounded-full border border-white/10 transition duration-700 group-hover:scale-110"/><div className="relative flex h-full flex-col"><div className="flex items-start justify-between"><div><span className="text-xs font-extrabold uppercase tracking-[.22em] text-white/65">{item.roomType.code}</span><h2 className="mt-3 font-display text-3xl font-black">{item.roomType.name}</h2></div><span className="grid size-14 place-items-center rounded-2xl border border-white/15 bg-white/10"><BedDouble size={25}/></span></div><p className="mt-4 line-clamp-3 max-w-xl text-sm leading-7 text-white/75">{item.roomType.description}</p><div className="mt-4 flex flex-wrap gap-2"><span className="flex items-center gap-1.5 rounded-full bg-black/15 px-3 py-1.5 text-xs"><UsersRound size={14}/>{t('rooms.capacity', { adults: item.roomType.capacityAdults, children: item.roomType.capacityChildren })}</span>{item.amenityNames.slice(0, 3).map(name => <span key={name} className="rounded-full bg-white/10 px-3 py-1.5 text-xs">{name}</span>)}</div><div className="mt-auto flex flex-col gap-4 pt-8 sm:flex-row sm:items-end sm:justify-between"><div><small className="text-white/65">{t('rooms.from')}</small><p className="font-display text-3xl font-black">{money(rate)}<span className="ml-1 text-sm font-medium text-white/65">{t('rooms.perNight')}</span></p></div><Button className="bg-white text-ink hover:bg-amber-50" onClick={() => startBooking(item.roomType.id)}><Sparkles size={16}/>{language === 'vi' ? 'Chọn hạng phòng' : 'Choose this class'}<ChevronRight size={16}/></Button></div></div></article>
+    })}</div>
+    {!results.length && <Card><Empty text={language === 'vi' ? 'Không có hạng phòng phù hợp. Hãy nới bộ lọc để xem thêm lựa chọn.' : 'No room class matches your filters. Try broadening your preferences.'}/></Card>}
   </>
 }

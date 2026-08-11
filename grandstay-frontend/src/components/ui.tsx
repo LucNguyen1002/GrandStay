@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, type ButtonHTMLAttributes, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { Inbox, LoaderCircle, RefreshCw, TriangleAlert, X } from 'lucide-react'
+import { useI18n } from '../i18n'
 
 export function PageHeader({ title, description, action }: { title: string; description: string; action?: ReactNode }) {
   return <div className="page-header mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
@@ -43,26 +44,29 @@ export function Badge({ children, tone = 'neutral' }: { children: ReactNode; ton
   return <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ring-1 ring-inset ${color}`}>{children}</span>
 }
 
-export function Loading({ text = 'Đang tải dữ liệu…' }: { text?: string }) {
+export function Loading({ text }: { text?: string }) {
+  const { language } = useI18n()
   return <div role="status" aria-live="polite" className="loading-state flex min-h-60 flex-col items-center justify-center text-ink-soft">
     <div className="loading-orbit"><LoaderCircle className="animate-spin" /></div>
-    <span className="mt-3 text-sm font-semibold">{text}</span>
+    <span className="mt-3 text-sm font-semibold">{text ?? (language === 'vi' ? 'Đang tải dữ liệu…' : 'Loading data…')}</span>
   </div>
 }
 
-export function Empty({ text = 'Chưa có dữ liệu.' }: { text?: string }) {
+export function Empty({ text }: { text?: string }) {
+  const { language } = useI18n()
   return <div className="empty-state py-12 text-center text-sm text-ink-soft">
     <span className="mx-auto mb-3 grid size-11 place-items-center rounded-2xl bg-slate-100 text-slate-400"><Inbox size={21} /></span>
-    {text}
+    {text ?? (language === 'vi' ? 'Chưa có dữ liệu.' : 'No data yet.')}
   </div>
 }
 
 export function ErrorState({ message, onRetry }: { message: string; onRetry?: () => void }) {
+  const { language, t } = useI18n()
   return <div role="alert" className="error-state rounded-2xl border border-red-100 bg-red-50/80 p-5 text-red-800">
     <div className="flex items-start gap-3">
       <TriangleAlert className="mt-0.5 shrink-0" size={20} />
-      <div className="min-w-0 flex-1"><p className="font-bold">Không thể tải dữ liệu</p><p className="mt-1 text-sm text-red-700">{message}</p></div>
-      {onRetry && <Button variant="secondary" onClick={onRetry}><RefreshCw size={15} />Thử lại</Button>}
+      <div className="min-w-0 flex-1"><p className="font-bold">{language === 'vi' ? 'Không thể tải dữ liệu' : 'Unable to load data'}</p><p className="mt-1 text-sm text-red-700">{message}</p></div>
+      {onRetry && <Button variant="secondary" onClick={onRetry}><RefreshCw size={15} />{t('common.retry')}</Button>}
     </div>
   </div>
 }
@@ -70,6 +74,7 @@ export function ErrorState({ message, onRetry }: { message: string; onRetry?: ()
 type ModalSize = 'sm' | 'md' | 'lg' | 'xl'
 
 export function Modal({ title, children, onClose, size = 'lg' }: { title: string; children: ReactNode; onClose: () => void; size?: ModalSize }) {
+  const { language } = useI18n()
   const titleId = useId()
   const panelRef = useRef<HTMLDivElement>(null)
   const widths: Record<ModalSize, string> = { sm: 'max-w-md', md: 'max-w-xl', lg: 'max-w-2xl', xl: 'max-w-4xl' }
@@ -113,7 +118,7 @@ export function Modal({ title, children, onClose, size = 'lg' }: { title: string
       <div ref={panelRef} role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1} className={`modal-panel max-h-[92vh] w-full ${widths[size]} overflow-y-auto rounded-3xl bg-white p-5 shadow-2xl outline-none sm:p-7`}>
         <div className="mb-5 flex items-center justify-between gap-4">
           <h2 id={titleId} className="page-title font-display text-2xl font-bold text-ink">{title}</h2>
-          <button type="button" aria-label="Đóng hộp thoại" onClick={onClose} className="icon-button shrink-0 rounded-xl p-2 text-ink-soft hover:bg-slate-100 hover:text-ink"><X size={20}/></button>
+          <button type="button" aria-label={language === 'vi' ? 'Đóng hộp thoại' : 'Close dialog'} onClick={onClose} className="icon-button shrink-0 rounded-xl p-2 text-ink-soft hover:bg-slate-100 hover:text-ink"><X size={20}/></button>
         </div>
         {children}
       </div>
@@ -122,7 +127,7 @@ export function Modal({ title, children, onClose, size = 'lg' }: { title: string
   )
 }
 
-export function ConfirmDialog({ title, description, confirmLabel = 'Xác nhận', loading = false, onCancel, onConfirm }: {
+export function ConfirmDialog({ title, description, confirmLabel, loading = false, onCancel, onConfirm }: {
   title: string
   description: string
   confirmLabel?: string
@@ -130,19 +135,21 @@ export function ConfirmDialog({ title, description, confirmLabel = 'Xác nhận'
   onCancel: () => void
   onConfirm: () => void
 }) {
+  const { language, t } = useI18n()
   return <Modal title={title} size="sm" onClose={onCancel}>
     <div className="rounded-2xl border border-red-100 bg-red-50/70 p-4 text-sm leading-6 text-red-900">{description}</div>
-    <p className="mt-4 text-xs leading-5 text-ink-soft">Hãy kiểm tra kỹ trước khi tiếp tục. Thao tác có thể làm thay đổi dữ liệu đang được sử dụng.</p>
-    <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end"><Button variant="secondary" disabled={loading} onClick={onCancel}>Hủy</Button><Button variant="danger" loading={loading} onClick={onConfirm}>{confirmLabel}</Button></div>
+    <p className="mt-4 text-xs leading-5 text-ink-soft">{language === 'vi' ? 'Hãy kiểm tra kỹ trước khi tiếp tục. Thao tác có thể làm thay đổi dữ liệu đang được sử dụng.' : 'Review this carefully before continuing. This action may change data currently in use.'}</p>
+    <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end"><Button variant="secondary" disabled={loading} onClick={onCancel}>{t('common.cancel')}</Button><Button variant="danger" loading={loading} onClick={onConfirm}>{confirmLabel ?? t('common.confirm')}</Button></div>
   </Modal>
 }
 
 export function Pagination({ page, totalPages, onChange }: { page: number; totalPages: number; onChange: (page: number) => void }) {
+  const { language } = useI18n()
   if (totalPages <= 1) return null
-  return <nav aria-label="Phân trang" className="mt-4 flex items-center justify-end gap-3 text-sm">
-    <Button variant="secondary" disabled={page === 0} onClick={() => onChange(page - 1)}>Trước</Button>
-    <span aria-live="polite">Trang <strong>{page + 1}</strong>/{totalPages}</span>
-    <Button variant="secondary" disabled={page + 1 >= totalPages} onClick={() => onChange(page + 1)}>Sau</Button>
+  return <nav aria-label={language === 'vi' ? 'Phân trang' : 'Pagination'} className="mt-4 flex items-center justify-end gap-3 text-sm">
+    <Button variant="secondary" disabled={page === 0} onClick={() => onChange(page - 1)}>{language === 'vi' ? 'Trước' : 'Previous'}</Button>
+    <span aria-live="polite">{language === 'vi' ? 'Trang' : 'Page'} <strong>{page + 1}</strong>/{totalPages}</span>
+    <Button variant="secondary" disabled={page + 1 >= totalPages} onClick={() => onChange(page + 1)}>{language === 'vi' ? 'Sau' : 'Next'}</Button>
   </nav>
 }
 

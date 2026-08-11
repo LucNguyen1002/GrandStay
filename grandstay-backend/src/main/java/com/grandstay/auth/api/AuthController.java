@@ -85,12 +85,18 @@ public class AuthController {
                                           message = "must contain 3-80 letters, numbers, dots, underscores or hyphens")
                                   String username,
                                   @NotBlank @Email @Size(max = 254) String email,
-                                  @NotBlank @Size(min = 12, max = 72) String password) {}
+                                  @NotBlank @Size(min = 12, max = 72)
+                                  @Pattern(regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[^A-Za-z0-9]).+$",
+                                          message = "must contain uppercase, lowercase, number and special character")
+                                  String password) {}
     public record LoginRequest(@NotBlank @Size(max = 254) String usernameOrEmail,
                                @NotBlank @Size(max = 200) String password) {}
     public record GoogleLoginRequest(@NotBlank @Size(max = 8192) String credential) {}
     public record RefreshRequest(@NotBlank @Size(max = 1024) String refreshToken) {}
     public record LogoutRequest(@NotBlank @Size(max = 1024) String refreshToken, boolean allDevices) {}
     public record ChangePasswordRequest(@NotBlank @Size(max = 72) String currentPassword,
-                                        @NotBlank @Size(min = 12, max = 72) String newPassword) {}
+                                        @NotBlank @Size(min = 12, max = 72)
+                                        @Pattern(regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[^A-Za-z0-9]).+$",
+                                                message = "must contain uppercase, lowercase, number and special character")
+                                        String newPassword) {}
 }

@@ -68,7 +68,19 @@ export type Booking = {
   version: number
 }
 
-export type BookingRoom = { id: string; bookingId: string; roomId: string; ratePlanId: string; stayPeriod: string; allocationStatus: string; pricingUnit: string; unitRate: number; quantity: number; roomCharge: number; version: number }
+export type BookingRoom = {
+  id: string
+  roomId: string
+  roomNumber?: string
+  roomTypeCode?: string
+  roomTypeName?: string
+  ratePlanId?: string
+  ratePlanName?: string
+  pricingUnit: string
+  unitRate: number
+  quantity: number
+  roomCharge: number
+}
 export type BookingGuest = { id: string; bookingId: string; customerId?: string; fullName: string; primary: boolean; nationality?: string; dateOfBirth?: string; version: number }
 export type BookingView = { booking: Booking; rooms: BookingRoom[]; guests: BookingGuest[] }
 
@@ -125,6 +137,25 @@ export type Customer = {
   nationality?: string
   dateOfBirth?: string
   gender?: string
+  version: number
+}
+
+export type CustomerProfile = {
+  id: string
+  customerCode: string
+  fullName: string
+  email: string
+  phone?: string
+  nationality?: string
+  dateOfBirth?: string
+  gender?: string
+  address?: string
+  identityType?: 'NATIONAL_ID' | 'PASSPORT' | 'OTHER'
+  identityMasked?: string
+  identityVerificationStatus: 'UNVERIFIED' | 'PENDING' | 'VERIFIED' | 'REJECTED'
+  identityRejectionReason?: string
+  identityFrontUploaded: boolean
+  identityBackUploaded: boolean
   version: number
 }
 

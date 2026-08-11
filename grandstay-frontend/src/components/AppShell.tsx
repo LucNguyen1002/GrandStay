@@ -1,14 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
-import { BadgePercent, BedDouble, BookOpenCheck, Building2, CalendarDays, ChartNoAxesCombined, ChevronDown, ChevronLeft, CircleDollarSign, ConciergeBell, FileClock, Gauge, LogOut, Menu, Settings, ShieldCheck, UserRoundCog, Users, X } from 'lucide-react'
+import { BadgePercent, BedDouble, BookOpenCheck, Building2, CalendarDays, ChartNoAxesCombined, ChevronDown, ChevronLeft, CircleDollarSign, ConciergeBell, FileClock, Gauge, LogOut, Menu, Settings, UserRoundCog, Users, X } from 'lucide-react'
 import { useAuth } from '../auth/AuthProvider'
 import { defaultAuthenticatedRoute } from '../auth/routes'
 import { UserAvatar } from './UserAvatar'
 import { RealtimeSync } from './RealtimeSync'
+import { LanguageToggle, useI18n, type MessageKey } from '../i18n'
 
 type NavigationItem = {
   to: string
-  label: string
+  label: MessageKey
   icon: typeof Gauge
   permission?: string
   role?: string
@@ -16,21 +17,22 @@ type NavigationItem = {
 }
 
 const navigation: NavigationItem[] = [
-  { to: '/dashboard', label: 'Tổng quan', icon: Gauge, permission: 'report:read' },
-  { to: '/rooms', label: 'Sơ đồ phòng', icon: BedDouble, permission: 'room:read' },
-  { to: '/bookings', label: 'Đặt phòng', icon: BookOpenCheck, permission: 'booking:read', alternativeRole: 'CUSTOMER' },
-  { to: '/customers', label: 'Khách hàng', icon: Users, permission: 'booking:read' },
-  { to: '/billing', label: 'Thu ngân', icon: CircleDollarSign, permission: 'payment:read' },
-  { to: '/services', label: 'Dịch vụ', icon: ConciergeBell, permission: 'service:read' },
-  { to: '/catalog', label: 'Danh mục phòng', icon: Building2, permission: 'room:read' },
-  { to: '/commercial', label: 'Tiện nghi & ưu đãi', icon: BadgePercent, permission: 'promotion:write' },
-  { to: '/reports', label: 'Báo cáo', icon: ChartNoAxesCombined, permission: 'report:read' },
-  { to: '/users', label: 'Người dùng', icon: UserRoundCog, role: 'ADMIN' },
-  { to: '/audit', label: 'Nhật ký kiểm toán', icon: FileClock, permission: 'audit:read' },
-  { to: '/settings', label: 'Thiết lập', icon: Settings },
+  { to: '/dashboard', label: 'nav.dashboard', icon: Gauge, permission: 'report:read' },
+  { to: '/rooms', label: 'nav.rooms', icon: BedDouble, permission: 'room:read' },
+  { to: '/bookings', label: 'nav.bookings', icon: BookOpenCheck, permission: 'booking:read', alternativeRole: 'CUSTOMER' },
+  { to: '/customers', label: 'nav.customers', icon: Users, permission: 'booking:read' },
+  { to: '/billing', label: 'nav.billing', icon: CircleDollarSign, permission: 'payment:read' },
+  { to: '/services', label: 'nav.services', icon: ConciergeBell, permission: 'service:read' },
+  { to: '/catalog', label: 'nav.catalog', icon: Building2, permission: 'room:read' },
+  { to: '/commercial', label: 'nav.commercial', icon: BadgePercent, permission: 'promotion:write' },
+  { to: '/reports', label: 'nav.reports', icon: ChartNoAxesCombined, permission: 'report:read' },
+  { to: '/users', label: 'nav.users', icon: UserRoundCog, role: 'ADMIN' },
+  { to: '/audit', label: 'nav.audit', icon: FileClock, permission: 'audit:read' },
+  { to: '/settings', label: 'nav.settings', icon: Settings },
 ]
 
 export function AppShell() {
+  const { locale, t } = useI18n()
   const [open, setOpen] = useState(false)
   const [compact, setCompact] = useState(() => localStorage.getItem('grandstay:compact-nav') === 'true')
   const [profileOpen, setProfileOpen] = useState(false)
@@ -39,8 +41,9 @@ export function AppShell() {
   const { user, logout, can, hasRole } = useAuth()
   const items = navigation.filter(item => ((!item.permission || can(item.permission)) && (!item.role || hasRole(item.role)))
     || Boolean(item.alternativeRole && hasRole(item.alternativeRole)))
-  const currentPage = navigation.find(item => item.to === location.pathname)?.label ?? 'GrandStay'
-  const today = new Intl.DateTimeFormat('vi-VN', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date())
+  const currentPageKey = navigation.find(item => item.to === location.pathname)?.label
+  const currentPage = currentPageKey ? t(currentPageKey) : 'GrandStay'
+  const today = new Intl.DateTimeFormat(locale, { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date())
 
   useEffect(() => {
     localStorage.setItem('grandstay:compact-nav', String(compact))
@@ -70,16 +73,16 @@ export function AppShell() {
           key={to}
           to={to}
           end
-          title={compact ? label : undefined}
+          title={compact ? t(label) : undefined}
           onClick={() => { setOpen(false); setProfileOpen(false) }}
           className={({ isActive }) => `nav-item relative flex items-center rounded-xl px-3 py-3 text-sm font-semibold ${compact ? 'justify-center' : 'gap-3'} ${isActive ? 'nav-item-active bg-gold text-white shadow-lg shadow-black/10' : 'text-slate-300 hover:bg-white/8 hover:text-white'}`}
         >
-          <Icon size={19} className="shrink-0"/>{!compact && <span>{label}</span>}
+          <Icon size={19} className="shrink-0"/>{!compact && <span>{t(label)}</span>}
         </NavLink>)}
       </nav>
       <div className="border-t border-white/10 p-3">
-        <button type="button" onClick={() => void logout()} title={compact ? 'Đăng xuất' : undefined} className={`nav-item flex w-full items-center rounded-xl px-3 py-3 text-left text-sm text-slate-300 hover:bg-white/8 hover:text-white ${compact ? 'justify-center' : 'gap-3'}`}><LogOut size={19}/>{!compact && 'Đăng xuất'}</button>
-        <button type="button" onClick={() => setCompact(value => !value)} className={`nav-item mt-1 hidden w-full items-center rounded-xl px-3 py-2 text-xs text-slate-400 hover:text-white lg:flex ${compact ? 'justify-center' : 'gap-3'}`} title={compact ? 'Mở rộng thanh điều hướng' : undefined}><ChevronLeft size={17} className={`transition-transform duration-300 ${compact ? 'rotate-180' : ''}`}/>{!compact && 'Thu gọn'}</button>
+        <button type="button" onClick={() => void logout()} title={compact ? t('nav.logout') : undefined} className={`nav-item flex w-full items-center rounded-xl px-3 py-3 text-left text-sm text-slate-300 hover:bg-white/8 hover:text-white ${compact ? 'justify-center' : 'gap-3'}`}><LogOut size={19}/>{!compact && t('nav.logout')}</button>
+        <button type="button" onClick={() => setCompact(value => !value)} className={`nav-item mt-1 hidden w-full items-center rounded-xl px-3 py-2 text-xs text-slate-400 hover:text-white lg:flex ${compact ? 'justify-center' : 'gap-3'}`} title={compact ? t('nav.collapse') : undefined}><ChevronLeft size={17} className={`transition-transform duration-300 ${compact ? 'rotate-180' : ''}`}/>{!compact && t('nav.collapse')}</button>
       </div>
     </aside>
 
@@ -88,12 +91,14 @@ export function AppShell() {
         <div className="flex min-w-0 items-center gap-3">
           <button type="button" aria-label="Mở trình đơn" className="icon-button rounded-xl border border-slate-200 bg-white p-2 lg:hidden" onClick={() => setOpen(true)}><Menu/></button>
           <div className="hidden min-w-0 sm:block">
-            <div className="flex items-center gap-2 text-sm"><span className="text-ink-soft">Vận hành khách sạn</span><span className="text-slate-300">/</span><strong className="truncate text-ink">{currentPage}</strong></div>
+            <div className="flex items-center gap-2 text-sm"><span className="text-ink-soft">{t('nav.hotelOperations')}</span><span className="text-slate-300">/</span><strong className="truncate text-ink">{currentPage}</strong></div>
             <div className="mt-1 flex items-center gap-1.5 text-[11px] text-slate-400"><CalendarDays size={12}/>{today}</div>
           </div>
         </div>
 
-        <div ref={profileRef} className="relative">
+        <div className="flex items-center gap-2">
+          <LanguageToggle compact />
+          <div ref={profileRef} className="relative">
           <button type="button" aria-haspopup="menu" aria-expanded={profileOpen} onClick={() => setProfileOpen(value => !value)} className="profile-trigger flex items-center gap-3 rounded-2xl p-1.5 pl-3 text-left transition hover:bg-white hover:shadow-sm">
             <div className="hidden text-right sm:block"><div className="max-w-40 truncate text-sm font-bold">{user?.name ?? user?.username}</div><div className="text-xs text-ink-soft">{user?.roles?.join(' · ')}</div></div>
             <UserAvatar userId={user?.sub} name={user?.name ?? user?.username} />
@@ -102,11 +107,11 @@ export function AppShell() {
           {profileOpen && <div role="menu" className="profile-menu absolute right-0 mt-2 w-64 overflow-hidden rounded-2xl border border-slate-200 bg-white p-2 shadow-xl">
             <div className="border-b border-slate-100 px-3 py-3"><p className="truncate text-sm font-bold">{user?.name ?? user?.username}</p><p className="truncate text-xs text-ink-soft">@{user?.username}</p></div>
             <div className="py-2">
-              <Link role="menuitem" to="/settings" onClick={() => setProfileOpen(false)} className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold hover:bg-slate-50"><Settings size={17}/>Thiết lập tài khoản</Link>
-              <div className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-emerald-700"><ShieldCheck size={17}/><span>Phiên được bảo vệ</span></div>
+              <Link role="menuitem" to="/settings" onClick={() => setProfileOpen(false)} className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold hover:bg-slate-50"><Settings size={17}/>{t('nav.settings')}</Link>
             </div>
-            <button type="button" role="menuitem" onClick={() => void logout()} className="flex w-full items-center gap-3 border-t border-slate-100 px-3 py-3 text-left text-sm font-semibold text-red-700 hover:bg-red-50"><LogOut size={17}/>Đăng xuất</button>
+            <button type="button" role="menuitem" onClick={() => void logout()} className="flex w-full items-center gap-3 border-t border-slate-100 px-3 py-3 text-left text-sm font-semibold text-red-700 hover:bg-red-50"><LogOut size={17}/>{t('nav.logout')}</button>
           </div>}
+          </div>
         </div>
       </header>
       <main className="p-4 sm:p-7 lg:p-9"><div key={location.pathname} className="page-enter"><Outlet /></div></main>
