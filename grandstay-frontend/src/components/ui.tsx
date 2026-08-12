@@ -14,7 +14,7 @@ export function PageHeader({ title, description, action }: { title: string; desc
 }
 
 export function Card({ children, className = '' }: { children: ReactNode; className?: string }) {
-  return <section className={`surface app-card rounded-2xl p-5 ${className}`}>{children}</section>
+  return <section className={`surface app-card min-w-0 max-w-full rounded-2xl p-5 ${className}`}>{children}</section>
 }
 
 export function Button({ children, variant = 'primary', loading = false, className = '', type, ...props }:

@@ -55,4 +55,19 @@ class ServiceCatalogApplicationServiceTest {
 
         verify(repository).findAllByActiveTrueAndDeletedAtIsNull(pageable);
     }
+
+    @Test
+    void pausingAServiceKeepsItVisibleForLaterRestoration() {
+        HotelService service = new HotelService();
+        service.setId(UUID.randomUUID());
+        service.setActive(true);
+        when(repository.findById(service.getId())).thenReturn(java.util.Optional.of(service));
+
+        new ServiceCatalogApplicationService(repository, mapper, Clock.systemUTC())
+                .pause(service.getId());
+
+        assertThat(service.isActive()).isFalse();
+        assertThat(service.getDeletedAt()).isNull();
+        verify(repository).save(service);
+    }
 }

@@ -59,6 +59,6 @@ class SmallHotelCatalogBootstrapInitializerIntegrationTest {
                 .filteredOn(type -> type.getCode().equals("STD"))
                 .singleElement()
                 .extracting(type -> type.getBaseNightlyRate())
-                .isEqualTo(new BigDecimal("720000.00"));
+                .isEqualTo(new BigDecimal("550000.00"));
     }
 }

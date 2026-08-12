@@ -76,6 +76,14 @@ public class SelfBookingApplicationService {
         bookings.cancel(bookingId, reason);
     }
 
+    @Transactional
+    public void addGuest(UUID userId, UUID bookingId, GuestInput guest) {
+        Customer customer = identities.resolve(userId);
+        requireOwned(bookingId, customer.getId());
+        bookings.addGuest(bookingId, new GuestInput(null, guest.fullName(), false,
+                guest.nationality(), guest.dateOfBirth()));
+    }
+
     private void requireOwned(UUID bookingId, UUID customerId) {
         if (!bookingRepository.existsByIdAndCustomerId(bookingId, customerId)) {
             throw BusinessException.notFound("Booking", bookingId);

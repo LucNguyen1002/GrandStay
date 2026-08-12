@@ -15,9 +15,11 @@ import com.grandstay.booking.domain.EarlyLateFeePolicy;
 import com.grandstay.booking.infrastructure.BookingRepository;
 import com.grandstay.booking.infrastructure.BookingRoomRepository;
 import com.grandstay.customer.infrastructure.CustomerRepository;
+import com.grandstay.payment.application.SelfPaymentApplicationService;
 import com.grandstay.room.domain.Room;
 import com.grandstay.room.infrastructure.RoomRepository;
 import com.grandstay.shared.domain.ModelEnums.BookingStatus;
+import com.grandstay.shared.domain.ModelEnums.BookingSource;
 import com.grandstay.shared.domain.ModelEnums.RoomOperationalStatus;
 import com.grandstay.shared.domain.ModelEnums.IdentityVerificationStatus;
 import com.grandstay.shared.exception.BusinessException;
@@ -34,6 +36,7 @@ public class BookingLifecycleService {
     private final BookingStatusPolicy statusPolicy;
     private final EarlyLateFeePolicy feePolicy;
     private final BillingApplicationService billingService;
+    private final SelfPaymentApplicationService selfPayments;
     private final Clock clock;
 
     public BookingLifecycleService(BookingRepository bookingRepository,
@@ -43,6 +46,7 @@ public class BookingLifecycleService {
                                    BookingStatusPolicy statusPolicy,
                                    EarlyLateFeePolicy feePolicy,
                                    BillingApplicationService billingService,
+                                   SelfPaymentApplicationService selfPayments,
                                    Clock clock) {
         this.bookingRepository = bookingRepository;
         this.bookingRoomRepository = bookingRoomRepository;
@@ -51,6 +55,7 @@ public class BookingLifecycleService {
         this.statusPolicy = statusPolicy;
         this.feePolicy = feePolicy;
         this.billingService = billingService;
+        this.selfPayments = selfPayments;
         this.clock = clock;
     }
 
@@ -73,6 +78,14 @@ public class BookingLifecycleService {
         }
         if (!checkInAt.isBefore(booking.getExpectedCheckOutAt())) {
             throw BusinessException.invalid("Check-in must be before expected check-out");
+        }
+        if (booking.getBookingSource() == BookingSource.ONLINE) {
+            var deposit = selfPayments.quoteForBooking(bookingId);
+            if (deposit.remainingDeposit().signum() > 0) {
+                throw new BusinessException(ErrorCode.DEPOSIT_REQUIRED,
+                        org.springframework.http.HttpStatus.UNPROCESSABLE_ENTITY,
+                        "The required deposit must be paid before online check-in");
+            }
         }
         List<BookingRoom> allocations = bookingRoomRepository.findAllByBookingId(bookingId);
         if (allocations.isEmpty()) throw BusinessException.invalid("Booking has no allocated rooms");
@@ -109,10 +122,18 @@ public class BookingLifecycleService {
         }
         List<BookingRoom> allocations = bookingRoomRepository.findAllByBookingId(bookingId);
         allocations.forEach(room -> room.setCheckedOutAt(checkOutAt));
+        List<Room> checkedOutRooms = roomRepository.findAllById(
+                allocations.stream().map(BookingRoom::getRoomId).toList());
+        checkedOutRooms.stream()
+                .filter(room -> room.getDeletedAt() == null)
+                .filter(room -> room.getOperationalStatus() == RoomOperationalStatus.AVAILABLE
+                        || room.getOperationalStatus() == RoomOperationalStatus.CLEANING)
+                .forEach(room -> room.setOperationalStatus(RoomOperationalStatus.CLEANING));
         booking.setActualCheckOutAt(checkOutAt);
         booking.setStatus(BookingStatus.CHECKED_OUT);
         bookingRepository.saveAndFlush(booking);
         bookingRoomRepository.saveAll(allocations);
+        roomRepository.saveAll(checkedOutRooms);
         BillingResult invoice = billingService.issueForCheckout(bookingId);
         return new CheckOutResult(bookingId, checkOutAt, invoice);
     }

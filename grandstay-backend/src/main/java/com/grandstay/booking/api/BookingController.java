@@ -90,6 +90,19 @@ public class BookingController {
         bookingService.cancel(id, request.reason());
     }
 
+    @PostMapping("/{id}/no-show")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("hasAuthority('booking:write')")
+    public void noShow(@PathVariable UUID id) { bookingService.markNoShow(id); }
+
+    @PostMapping("/{id}/guests")
+    @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasAuthority('booking:write')")
+    public void addGuest(@PathVariable UUID id, @Valid @RequestBody GuestRequest request) {
+        bookingService.addGuest(id, new GuestInput(request.customerId(), request.fullName(), false,
+                request.nationality(), request.dateOfBirth()));
+    }
+
     @PostMapping("/{id}/check-in")
     @PreAuthorize("hasAuthority('booking:checkin')")
     public BookingLifecycleService.CheckInResult checkIn(@PathVariable UUID id,

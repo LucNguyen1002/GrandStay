@@ -7,6 +7,7 @@ import type { Floor, Page, RatePlan, Room, RoomType } from '../api/types'
 import { Badge, Button, Card, ConfirmDialog, Empty, Loading, Modal, PageHeader, statusTone } from '../components/ui'
 import { useAuth } from '../auth/AuthProvider'
 import { useI18n, type Language } from '../i18n'
+import { catalogName, ratePlanName } from '../i18n/catalog'
 
 type Kind = 'floor' | 'type' | 'room' | 'rate'
 type CatalogEntity = Floor | RoomType | Room | RatePlan
@@ -69,22 +70,22 @@ export function CatalogPage() {
     <PageHeader title={text('Danh mục phòng', 'Room catalog')} description={text('Cấu hình, chỉnh sửa và ngừng sử dụng tầng, hạng phòng, phòng vật lý và gói giá.', 'Configure, edit and deactivate floors, room classes, physical rooms and rate plans.')}/>
     <div className="grid gap-5 xl:grid-cols-2">
       <CatalogCard title={text('Tầng', 'Floors')} action={can('room:write') && <Button variant="secondary" onClick={() => setEditor({ kind: 'floor' })}><Plus size={15}/>{text('Thêm', 'Add')}</Button>}>
-        <table className="data-table"><thead><tr><th>{text('Mã', 'Code')}</th><th>{text('Tên tầng', 'Floor name')}</th><th>{text('Số tầng', 'Floor number')}</th><th></th></tr></thead><tbody>{floors.data?.map(item => <tr key={item.id}><td className="font-bold">{item.code}</td><td>{item.name}</td><td>{item.floorNumber}</td><td>{actions('floor', item, item.name)}</td></tr>)}</tbody></table>
+        <table className="data-table"><thead><tr><th>{text('Mã', 'Code')}</th><th>{text('Tên tầng', 'Floor name')}</th><th>{text('Số tầng', 'Floor number')}</th><th></th></tr></thead><tbody>{floors.data?.map(item => <tr key={item.id}><td className="font-bold">{item.code}</td><td>{catalogName(item.code, item.name, language)}</td><td>{item.floorNumber}</td><td>{actions('floor', item, catalogName(item.code, item.name, language))}</td></tr>)}</tbody></table>
         {!floors.data?.length && <Empty/>}
       </CatalogCard>
 
       <CatalogCard title={text('Hạng phòng', 'Room classes')} action={can('room:write') && <Button variant="secondary" onClick={() => setEditor({ kind: 'type' })}><Plus size={15}/>{text('Thêm', 'Add')}</Button>}>
-        <table className="data-table"><thead><tr><th>{text('Mã', 'Code')}</th><th>{text('Tên hạng', 'Class name')}</th><th>{text('Sức chứa', 'Capacity')}</th><th>{text('Giá đêm', 'Nightly rate')}</th><th></th></tr></thead><tbody>{types.data?.map(item => <tr key={item.id}><td className="font-bold">{item.code}</td><td>{item.name}</td><td>{item.capacityAdults} {text('người lớn', 'adults')} · {item.capacityChildren} {text('trẻ em', 'children')}</td><td>{money(Number(item.baseNightlyRate), item.currency)}</td><td>{actions('type', item, item.name)}</td></tr>)}</tbody></table>
+        <table className="data-table"><thead><tr><th>{text('Mã', 'Code')}</th><th>{text('Tên hạng', 'Class name')}</th><th>{text('Sức chứa', 'Capacity')}</th><th>{text('Giá đêm', 'Nightly rate')}</th><th></th></tr></thead><tbody>{types.data?.map(item => <tr key={item.id}><td className="font-bold">{item.code}</td><td>{catalogName(item.code, item.name, language)}</td><td>{item.capacityAdults} {text('người lớn', 'adults')} · {item.capacityChildren} {text('trẻ em', 'children')}</td><td>{money(Number(item.baseNightlyRate), item.currency)}</td><td>{actions('type', item, catalogName(item.code, item.name, language))}</td></tr>)}</tbody></table>
         {!types.data?.length && <Empty/>}
       </CatalogCard>
 
       <CatalogCard title={text('Phòng', 'Rooms')} action={can('room:write') && <Button variant="secondary" onClick={() => setEditor({ kind: 'room' })}><Plus size={15}/>{text('Thêm', 'Add')}</Button>}>
-        <table className="data-table"><thead><tr><th>{text('Số phòng', 'Room number')}</th><th>{text('Tầng', 'Floor')}</th><th>{text('Hạng', 'Class')}</th><th>{text('Trạng thái', 'Status')}</th><th></th></tr></thead><tbody>{rooms.data?.map(item => <tr key={item.id}><td className="font-bold">{item.roomNumber}</td><td>{floors.data?.find(floor => floor.id === item.floorId)?.name ?? '—'}</td><td>{types.data?.find(type => type.id === item.roomTypeId)?.name ?? '—'}</td><td><Badge tone={statusTone(item.operationalStatus)}>{roomStatuses[item.operationalStatus] ?? item.operationalStatus}</Badge></td><td>{actions('room', item, `${text('phòng', 'room')} ${item.roomNumber}`)}</td></tr>)}</tbody></table>
+        <table className="data-table"><thead><tr><th>{text('Số phòng', 'Room number')}</th><th>{text('Tầng', 'Floor')}</th><th>{text('Hạng', 'Class')}</th><th>{text('Trạng thái', 'Status')}</th><th></th></tr></thead><tbody>{rooms.data?.map(item => { const floor = floors.data?.find(entry => entry.id === item.floorId); const type = types.data?.find(entry => entry.id === item.roomTypeId); return <tr key={item.id}><td className="font-bold">{item.roomNumber}</td><td>{floor ? catalogName(floor.code, floor.name, language) : '—'}</td><td>{type ? catalogName(type.code, type.name, language) : '—'}</td><td><Badge tone={statusTone(item.operationalStatus)}>{roomStatuses[item.operationalStatus] ?? item.operationalStatus}</Badge></td><td>{actions('room', item, `${text('phòng', 'room')} ${item.roomNumber}`)}</td></tr> })}</tbody></table>
         {!rooms.data?.length && <Empty/>}
       </CatalogCard>
 
       <CatalogCard title={text('Gói giá', 'Rate plans')} action={can('room:write') && <Button variant="secondary" onClick={() => setEditor({ kind: 'rate' })}><Plus size={15}/>{text('Thêm', 'Add')}</Button>}>
-        <table className="data-table"><thead><tr><th>{text('Mã', 'Code')}</th><th>{text('Tên gói', 'Plan name')}</th><th>{text('Đơn vị', 'Unit')}</th><th>{text('Giá', 'Rate')}</th><th></th></tr></thead><tbody>{rates.data?.map(item => <tr key={item.id}><td className="font-bold">{item.code}</td><td>{item.name}</td><td>{pricingUnits[item.pricingUnit] ?? item.pricingUnit}</td><td>{money(Number(item.rate), item.currency)}</td><td>{actions('rate', item, item.name)}</td></tr>)}</tbody></table>
+        <table className="data-table"><thead><tr><th>{text('Mã', 'Code')}</th><th>{text('Tên gói', 'Plan name')}</th><th>{text('Đơn vị', 'Unit')}</th><th>{text('Giá', 'Rate')}</th><th></th></tr></thead><tbody>{rates.data?.map(item => <tr key={item.id}><td className="font-bold">{item.code}</td><td>{ratePlanName(item.code, item.name, language)}</td><td>{pricingUnits[item.pricingUnit] ?? item.pricingUnit}</td><td>{money(Number(item.rate), item.currency)}</td><td>{actions('rate', item, ratePlanName(item.code, item.name, language))}</td></tr>)}</tbody></table>
         {!rates.data?.length && <Empty/>}
       </CatalogCard>
     </div>

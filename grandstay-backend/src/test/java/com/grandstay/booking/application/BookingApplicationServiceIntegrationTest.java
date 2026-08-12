@@ -126,6 +126,27 @@ class BookingApplicationServiceIntegrationTest {
     }
 
     @Test
+    void requiresTheConfiguredDepositBeforeCheckingInAnOnlineBooking() {
+        Instant actualCheckIn = Instant.now().minusSeconds(1);
+        CreateBooking direct = command(actualCheckIn.plusSeconds(3600), actualCheckIn.plusSeconds(25 * 3600));
+        var booking = bookingService.create(new CreateBooking(direct.customerId(), direct.promotionId(),
+                BookingSource.ONLINE, direct.expectedCheckInAt(), direct.expectedCheckOutAt(),
+                direct.adults(), direct.children(), direct.specialRequests(), direct.currency(),
+                direct.confirmImmediately(), direct.rooms(), direct.guests()));
+
+        assertThatThrownBy(() -> lifecycleService.checkIn(booking.id(), actualCheckIn))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("deposit");
+
+        paymentService.record(new RecordPayment(booking.id(), "DEP-" + booking.id(),
+                PaymentPurpose.DEPOSIT, PaymentMethod.CASH, new BigDecimal("300000"),
+                "VND", true, null, "Required online deposit"));
+
+        assertThat(lifecycleService.checkIn(booking.id(), actualCheckIn).bookingId())
+                .isEqualTo(booking.id());
+    }
+
+    @Test
     void preventsOverlapButAllowsAdjacentStay() {
         assertThat(roomCatalogService.availableRooms(Instant.parse("2030-01-01T07:00:00Z"),
                 Instant.parse("2030-01-03T07:00:00Z"))).extracting(dto -> dto.id()).contains(room.getId());
@@ -150,6 +171,39 @@ class BookingApplicationServiceIntegrationTest {
     }
 
     @Test
+    void addsCompanionUpToTheDeclaredGuestCount() {
+        var booking = bookingService.create(new CreateBooking(null, null, BookingSource.DIRECT,
+                Instant.parse("2034-01-01T07:00:00Z"), Instant.parse("2034-01-02T07:00:00Z"),
+                2, 0, null, "VND", true,
+                List.of(new RoomSelection(room.getId(), ratePlan.getId(), 2, 0)),
+                List.of(new GuestInput(null, "Primary Guest", true, "VN", null))));
+
+        bookingService.addGuest(booking.id(), new GuestInput(null, "Companion Guest", false, "vn", null));
+
+        assertThat(bookingQueryService.get(booking.id()).guests())
+                .extracting(guest -> guest.fullName())
+                .containsExactlyInAnyOrder("Primary Guest", "Companion Guest");
+        assertThatThrownBy(() -> bookingService.addGuest(booking.id(),
+                new GuestInput(null, "Extra Guest", false, "VN", null)))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("maximum");
+    }
+
+    @Test
+    void marksAnOverdueConfirmedBookingAsNoShowAndReleasesTheRoom() {
+        Instant expectedCheckIn = Instant.now().minusSeconds(2 * 3600);
+        Instant expectedCheckOut = Instant.now().plusSeconds(22 * 3600);
+        var booking = bookingService.create(command(expectedCheckIn, expectedCheckOut));
+
+        bookingService.markNoShow(booking.id());
+
+        assertThat(bookingQueryService.get(booking.id()).booking().status())
+                .isEqualTo(BookingStatus.NO_SHOW);
+        assertThat(roomCatalogService.availableRooms(expectedCheckIn, expectedCheckOut))
+                .extracting(dto -> dto.id()).contains(room.getId());
+    }
+
+    @Test
     void completesStayBillingPaymentAndPartialRefund() {
         Instant checkOut = Instant.now().minusSeconds(5);
         Instant checkIn = checkOut.minusSeconds(24 * 3600);
@@ -159,6 +213,15 @@ class BookingApplicationServiceIntegrationTest {
         usageService.add(booking.id(), booking.rooms().get(0).id(), hotelService.getId(),
                 new BigDecimal("2"), null);
         var checkedOut = lifecycleService.checkOut(booking.id(), checkOut);
+
+        assertThat(roomRepository.findById(room.getId()).orElseThrow().getOperationalStatus())
+                .isEqualTo(RoomOperationalStatus.CLEANING);
+        assertThat(roomCatalogService.matrix(checkOut).stream()
+                .filter(row -> row.getRoomId().equals(room.getId()))
+                .findFirst().orElseThrow().getDisplayStatus()).isEqualTo("CLEANING");
+        roomCatalogService.completeCleaning(room.getId());
+        assertThat(roomRepository.findById(room.getId()).orElseThrow().getOperationalStatus())
+                .isEqualTo(RoomOperationalStatus.AVAILABLE);
 
         assertThat(checkedOut.invoice().roomCharge()).isEqualByComparingTo("1000000.00");
         assertThat(checkedOut.invoice().serviceCharge()).isEqualByComparingTo("400000.00");
@@ -204,6 +267,9 @@ class BookingApplicationServiceIntegrationTest {
         var booking = bookingService.create(command(Instant.parse("2032-04-10T07:00:00Z"),
                 Instant.parse("2032-04-12T07:00:00Z"), uniqueGuest));
 
+        assertThat(bookingQueryService.list(null, null, PageRequest.of(0, 20)).getContent())
+                .extracting(dto -> dto.id())
+                .contains(booking.id());
         assertThat(bookingQueryService.list(null, booking.bookingNumber().substring(3),
                 PageRequest.of(0, 20)).getContent())
                 .extracting(dto -> dto.id())

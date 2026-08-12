@@ -151,6 +151,17 @@ public class RoomCatalogApplicationService {
     }
 
     @Transactional
+    public RoomDto completeCleaning(UUID id) {
+        Room room = activeRoom(id);
+        if (room.getOperationalStatus() != RoomOperationalStatus.CLEANING) {
+            throw BusinessException.conflict(ErrorCode.INVALID_STATE_TRANSITION,
+                    "Only a room being cleaned can be marked ready");
+        }
+        room.setOperationalStatus(RoomOperationalStatus.AVAILABLE);
+        return mapper.toDto(rooms.save(room));
+    }
+
+    @Transactional
     public void deleteRoom(UUID id) {
         Room room = activeRoom(id);
         if (rooms.hasActiveAllocation(id)) {

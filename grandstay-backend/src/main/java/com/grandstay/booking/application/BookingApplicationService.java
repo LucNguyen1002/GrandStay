@@ -96,7 +96,8 @@ public class BookingApplicationService {
                     .orElseThrow(() -> BusinessException.notFound("Room type", room.getRoomTypeId()));
             if (selection.adults() > roomType.getCapacityAdults()
                     || selection.children() > roomType.getCapacityChildren()) {
-                throw BusinessException.invalid("Số khách vượt quá sức chứa của phòng " + room.getRoomNumber());
+                throw new BusinessException(ErrorCode.ROOM_CAPACITY_EXCEEDED, HttpStatus.UNPROCESSABLE_ENTITY,
+                        "Guest count exceeds capacity of room " + room.getRoomNumber());
             }
             RatePlan requestedPlan = ratePlanRepository.findById(selection.ratePlanId())
                     .orElseThrow(() -> BusinessException.notFound("Rate plan", selection.ratePlanId()));
@@ -186,6 +187,37 @@ public class BookingApplicationService {
         }
         booking.setStatus(BookingStatus.NO_SHOW);
         bookingRepository.saveAndFlush(booking);
+    }
+
+    @Transactional
+    public void addGuest(UUID bookingId, GuestInput input) {
+        Booking booking = lockedBooking(bookingId);
+        if (!Set.of(BookingStatus.PENDING, BookingStatus.CONFIRMED, BookingStatus.CHECKED_IN)
+                .contains(booking.getStatus())) {
+            throw new BusinessException(ErrorCode.INVALID_STATE_TRANSITION, HttpStatus.CONFLICT,
+                    "Guests can only be added before check-out");
+        }
+        if (input == null || input.fullName() == null || input.fullName().isBlank()) {
+            throw BusinessException.invalid("Guest full name is required");
+        }
+        int capacity = booking.getAdults() + booking.getChildren();
+        int currentGuests = bookingGuestRepository.findAllByBookingIdOrderByPrimaryDesc(bookingId).size();
+        if (currentGuests >= capacity) {
+            throw new BusinessException(ErrorCode.GUEST_CAPACITY_EXCEEDED, HttpStatus.UNPROCESSABLE_ENTITY,
+                    "The booking already has the maximum number of guests");
+        }
+        if (input.dateOfBirth() != null && input.dateOfBirth().isAfter(LocalDate.now(clock))) {
+            throw BusinessException.invalid("Guest date of birth cannot be in the future");
+        }
+        BookingGuest guest = new BookingGuest();
+        guest.setBookingId(bookingId);
+        guest.setCustomerId(input.customerId());
+        guest.setFullName(input.fullName().trim());
+        guest.setPrimary(false);
+        guest.setNationality(input.nationality() == null || input.nationality().isBlank()
+                ? null : input.nationality().toUpperCase(Locale.ROOT));
+        guest.setDateOfBirth(input.dateOfBirth());
+        bookingGuestRepository.save(guest);
     }
 
     Booking lockedBooking(UUID id) {

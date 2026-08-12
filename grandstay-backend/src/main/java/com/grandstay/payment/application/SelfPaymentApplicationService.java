@@ -59,6 +59,13 @@ public class SelfPaymentApplicationService {
         return quote(requireOwnedBooking(userId, bookingId));
     }
 
+    @Transactional(readOnly = true)
+    public DepositQuote quoteForBooking(UUID bookingId) {
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> BusinessException.notFound("Booking", bookingId));
+        return quote(booking);
+    }
+
     @Transactional
     public PaymentView get(UUID userId, UUID paymentId) {
         Customer customer = identities.resolve(userId);

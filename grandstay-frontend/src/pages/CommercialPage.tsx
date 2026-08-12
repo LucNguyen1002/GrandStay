@@ -7,6 +7,7 @@ import type { AmenityView, Page, Promotion, RoomType } from '../api/types'
 import { Badge, Button, Card, ConfirmDialog, Empty, ErrorState, Loading, Modal, PageHeader, statusTone } from '../components/ui'
 import { useAuth } from '../auth/AuthProvider'
 import { useI18n, type Language } from '../i18n'
+import { catalogDescription, catalogName } from '../i18n/catalog'
 
 type Editor = { kind: 'amenity'; item?: AmenityView } | { kind: 'promotion'; item?: Promotion } | null
 type CommercialKind = 'amenity' | 'promotion'
@@ -69,10 +70,10 @@ export function CommercialPage() {
         </div>
         <div className="table-shell"><table className="data-table"><thead><tr><th>{text('Mã', 'Code')}</th><th>{text('Tiện nghi', 'Amenity')}</th><th>{text('Áp dụng cho hạng phòng', 'Assigned room classes')}</th><th></th></tr></thead><tbody>{amenities.data?.map(item => <tr key={item.amenity.id}>
           <td className="font-bold">{item.amenity.code}</td>
-          <td><strong>{item.amenity.name}</strong>{item.amenity.description && <div className="mt-0.5 max-w-md text-xs text-ink-soft">{item.amenity.description}</div>}</td>
+          <td><strong>{catalogName(item.amenity.code, item.amenity.name, language)}</strong>{item.amenity.description && <div className="mt-0.5 max-w-md text-xs text-ink-soft">{catalogDescription(item.amenity.code, item.amenity.description, language)}</div>}</td>
           <td><div className="flex max-w-xl flex-wrap gap-1.5">{item.roomTypes.map(assignment => {
             const roomType = roomTypes.data?.find(type => type.id === assignment.roomTypeId)
-            return roomType ? <Badge key={assignment.roomTypeId} tone="neutral">{roomType.name}{assignment.quantity > 1 ? ` × ${assignment.quantity}` : ''}</Badge> : null
+            return roomType ? <Badge key={assignment.roomTypeId} tone="neutral">{catalogName(roomType.code, roomType.name, language)}{assignment.quantity > 1 ? ` × ${assignment.quantity}` : ''}</Badge> : null
           })}{!item.roomTypes.length && <span className="text-sm text-ink-soft">{text('Chưa gán', 'Not assigned')}</span>}</div></td>
           <td>{can('room:write') && <div className="flex justify-end gap-1"><button type="button" aria-label={`${text('Sửa', 'Edit')} ${item.amenity.name}`} className="rounded-lg p-2 hover:bg-slate-100" onClick={() => setEditor({ kind: 'amenity', item })}><Pencil size={17}/></button><button type="button" aria-label={`${text('Xóa', 'Delete')} ${item.amenity.name}`} className="rounded-lg p-2 text-red-600 hover:bg-red-50" onClick={() => setDeleting({ kind: 'amenity', id: item.amenity.id, name: item.amenity.name })}><Trash2 size={17}/></button></div>}</td>
         </tr>)}</tbody></table>{!amenities.data?.length && <Empty text={text('Chưa có tiện nghi nào.', 'No amenities yet.')}/>}</div>
@@ -111,7 +112,7 @@ export function CommercialPage() {
 }
 
 function AmenityModal({ item, roomTypes, onClose, onSaved }: { item?: AmenityView; roomTypes: RoomType[]; onClose: () => void; onSaved: () => void }) {
-  const { text } = useI18n()
+  const { language, text } = useI18n()
   const [form, setForm] = useState({ code: item?.amenity.code ?? '', name: item?.amenity.name ?? '', description: item?.amenity.description ?? '', icon: item?.amenity.icon ?? '' })
   const [selected, setSelected] = useState<Record<string, number>>(() => Object.fromEntries(item?.roomTypes.map(assignment => [assignment.roomTypeId, assignment.quantity]) ?? []))
   const mutation = useMutation({
@@ -135,7 +136,7 @@ function AmenityModal({ item, roomTypes, onClose, onSaved }: { item?: AmenityVie
     <div className="mt-5 border-t border-slate-100 pt-5"><h3 className="font-bold">{text('Áp dụng cho hạng phòng', 'Assigned room classes')}</h3><p className="mt-1 text-xs text-ink-soft">{text('Tích các hạng có sẵn tiện nghi này và nhập số lượng nếu cần.', 'Select the room classes that include this amenity and enter a quantity if needed.')}</p>
       <div className="mt-3 grid gap-2 sm:grid-cols-2">{roomTypes.map(roomType => {
         const checked = selected[roomType.id] != null
-        return <div key={roomType.id} className={`flex items-center gap-3 rounded-xl border p-3 ${checked ? 'border-gold-soft bg-amber-50/50' : 'border-slate-200'}`}><label className="flex min-w-0 flex-1 items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={checked} onChange={event => setSelected(previous => { const next = { ...previous }; if (event.target.checked) next[roomType.id] = 1; else delete next[roomType.id]; return next })}/><span className="truncate">{roomType.name}</span></label>{checked && <input aria-label={`${text('Số lượng', 'Quantity')} ${roomType.name}`} type="number" min={1} className="field w-20 py-2" value={selected[roomType.id]} onChange={event => setSelected(previous => ({ ...previous, [roomType.id]: Math.max(1, Number(event.target.value)) }))}/>}</div>
+        return <div key={roomType.id} className={`flex items-center gap-3 rounded-xl border p-3 ${checked ? 'border-gold-soft bg-amber-50/50' : 'border-slate-200'}`}><label className="flex min-w-0 flex-1 items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={checked} onChange={event => setSelected(previous => { const next = { ...previous }; if (event.target.checked) next[roomType.id] = 1; else delete next[roomType.id]; return next })}/><span className="truncate">{catalogName(roomType.code, roomType.name, language)}</span></label>{checked && <input aria-label={`${text('Số lượng', 'Quantity')} ${catalogName(roomType.code, roomType.name, language)}`} type="number" min={1} className="field w-20 py-2" value={selected[roomType.id]} onChange={event => setSelected(previous => ({ ...previous, [roomType.id]: Math.max(1, Number(event.target.value)) }))}/>}</div>
       })}</div>
     </div>
     <div className="mt-6 flex justify-end gap-3"><Button variant="secondary" onClick={onClose}>{text('Đóng', 'Close')}</Button><Button disabled={!valid} loading={mutation.isPending} onClick={() => mutation.mutate()}>{text('Lưu tiện nghi', 'Save amenity')}</Button></div>

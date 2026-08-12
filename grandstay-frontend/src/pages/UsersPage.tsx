@@ -79,7 +79,7 @@ export function UsersPage() {
       description={text('Cấp tài khoản nhân viên, khóa truy cập và kiểm soát phiên đăng nhập.', 'Create staff accounts, lock access and manage sign-in sessions.')}
       action={<Button onClick={() => setCreating(true)}><Plus size={17}/>{text('Tạo người dùng', 'Create user')}</Button>}
     />
-    <Card>
+    <Card className="overflow-hidden">
       <div className="table-shell">
         <table className="data-table">
           <thead><tr><th>{text('Tài khoản', 'Account')}</th><th>{text('Họ tên', 'Full name')}</th><th>{text('Liên hệ', 'Contact')}</th><th>{text('Trạng thái', 'Status')}</th><th><span className="sr-only">{text('Thao tác', 'Actions')}</span></th></tr></thead>

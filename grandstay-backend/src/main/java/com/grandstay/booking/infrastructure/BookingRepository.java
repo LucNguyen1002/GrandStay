@@ -6,12 +6,12 @@ public interface BookingRepository extends JpaRepository<Booking,UUID> {
  @Query(value="""
   select distinct b from Booking b left join BookingGuest g on g.bookingId=b.id
   where (:status is null or b.status=:status)
-    and (:search is null or lower(b.bookingNumber) like concat('%',lower(:search),'%')
+    and (lower(b.bookingNumber) like concat('%',lower(:search),'%')
          or lower(g.fullName) like concat('%',lower(:search),'%'))
   """,countQuery="""
   select count(distinct b.id) from Booking b left join BookingGuest g on g.bookingId=b.id
   where (:status is null or b.status=:status)
-    and (:search is null or lower(b.bookingNumber) like concat('%',lower(:search),'%')
+    and (lower(b.bookingNumber) like concat('%',lower(:search),'%')
          or lower(g.fullName) like concat('%',lower(:search),'%'))
   """)
  Page<Booking> search(@Param("status") BookingStatus status,@Param("search") String search,Pageable pageable);

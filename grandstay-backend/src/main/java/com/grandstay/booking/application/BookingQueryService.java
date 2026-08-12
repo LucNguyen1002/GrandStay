@@ -45,7 +45,9 @@ public class BookingQueryService {
 
     @Transactional(readOnly = true)
     public Page<BookingDto> list(BookingStatus status, String search, Pageable pageable) {
-        String normalizedSearch = search == null || search.isBlank() ? null : search.trim();
+        // Keep this parameter textual even when no search term is supplied. PostgreSQL can
+        // otherwise infer an untyped null as bytea when Hibernate uses it inside lower(...).
+        String normalizedSearch = search == null || search.isBlank() ? "" : search.trim();
         return bookingRepository.search(status, normalizedSearch, pageable).map(mapper::toDto);
     }
 

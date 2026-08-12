@@ -83,6 +83,14 @@ public class SelfBookingController {
         service.cancel(userId(jwt), id, request.reason());
     }
 
+    @PostMapping("/{id}/guests")
+    @ResponseStatus(HttpStatus.CREATED)
+    public void addGuest(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID id,
+                         @Valid @RequestBody GuestRequest request) {
+        service.addGuest(userId(jwt), id, new GuestInput(null, request.fullName(), false,
+                request.nationality(), request.dateOfBirth()));
+    }
+
     private UUID userId(Jwt jwt) { return UUID.fromString(jwt.getSubject()); }
 
     public record CreateSelfBookingRequest(UUID promotionId,

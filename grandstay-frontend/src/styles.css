@@ -101,7 +101,7 @@ a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
 .icon-button { transition: color .18s ease, background .18s ease, transform .18s ease; }
 .icon-button:active { transform: scale(.92); }
 
-.table-shell { overflow-x: auto; border: 1px solid #e3e9ee; border-radius: 1rem; background: white; }
+.table-shell { min-width: 0; max-width: 100%; overflow-x: auto; border: 1px solid #e3e9ee; border-radius: 1rem; background: white; }
 .data-table { width: 100%; border-collapse: collapse; font-size: .875rem; }
 .data-table th { background: #f8faf9; color: #627d98; font-size: .7rem; letter-spacing: .07em; text-align: left; text-transform: uppercase; padding: .85rem 1rem; }
 .data-table td { padding: .92rem 1rem; border-top: 1px solid #edf1f4; white-space: nowrap; transition: background .16s ease; }

@@ -181,7 +181,11 @@ const I18nContext = createContext<I18nContextValue>({
 
 export function I18nProvider({ children }: { children: ReactNode }) {
   const [language, setLanguage] = useState<Language>(getStoredLanguage)
-  useEffect(() => { window.localStorage.setItem(STORAGE_KEY, language); document.documentElement.lang = language }, [language])
+  useEffect(() => {
+    window.localStorage.setItem(STORAGE_KEY, language)
+    document.documentElement.lang = language
+    document.title = language === 'vi' ? 'GrandStay | Kỳ nghỉ theo cách của bạn' : 'GrandStay | Your stay, your way'
+  }, [language])
   const value = useMemo<I18nContextValue>(() => ({
     language, locale: localeFor(language), setLanguage,
     t: (key, variables) => translate(key, variables, language),

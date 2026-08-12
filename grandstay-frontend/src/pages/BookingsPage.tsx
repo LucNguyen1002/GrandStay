@@ -5,10 +5,11 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { api, errorMessage } from '../api/client'
 import type { AmenityView, Booking, BookingView, Customer, HotelService, Page, Promotion, RatePlan, Room, RoomType } from '../api/types'
-import { Badge, Button, Card, Empty, Loading, Modal, PageHeader, Pagination, statusTone } from '../components/ui'
+import { Badge, Button, Card, ConfirmDialog, Empty, Loading, Modal, PageHeader, Pagination, statusTone } from '../components/ui'
 import { useAuth } from '../auth/AuthProvider'
 import { CustomerDepositPanel } from '../components/CustomerDepositPanel'
 import { formatDateTime, formatMoney, useI18n, type Language } from '../i18n'
+import { catalogDescription, catalogName, ratePlanName } from '../i18n/catalog'
 
 const dateTime = (value: string, language: Language) => formatDateTime(value, language)
 const money = (value: number, currency = 'VND', language: Language = 'vi') => formatMoney(value, currency, language)
@@ -45,6 +46,7 @@ export function BookingsPage() {
   const [creating, setCreating] = useState(searchParams.get('new') === '1')
   const [details, setDetails] = useState<string | null>(initialBookingId)
   const [cancelTarget, setCancelTarget] = useState<Booking | null>(null)
+  const [noShowTarget, setNoShowTarget] = useState<Booking | null>(null)
   const navigate = useNavigate()
   const { can, hasRole, user } = useAuth()
   const selfService = hasRole('CUSTOMER') && !can('booking:read')
@@ -76,7 +78,7 @@ export function BookingsPage() {
       ] as [HistoryGroup, string][]).map(([key, label]) => <button key={key} type="button" onClick={() => setHistoryGroup(key)} className={`shrink-0 rounded-full px-4 py-2 text-sm font-bold transition ${historyGroup === key ? 'bg-ink text-white shadow-sm' : 'bg-slate-100 text-ink-soft hover:bg-slate-200'}`}>{label}</button>)}</div>}
       <div className="mb-5 flex flex-col gap-3 sm:flex-row"><div className="relative flex-1"><Search className="field-icon" size={18}/><input className="field field-with-icon" aria-label={t('common.search')} placeholder={text('Tìm theo mã đặt phòng…', 'Search booking number…')} value={search} onChange={e => { setSearch(e.target.value); setPage(0) }}/></div>{!selfService && <select aria-label={text('Trạng thái', 'Status')} className="field sm:w-52" value={status} onChange={e => { setStatus(e.target.value); setPage(0) }}>{statuses.map(s => <option key={s} value={s}>{s ? statusLabel(s, language) : t('bookings.all')}</option>)}</select>}</div>
       {selfService && <div className="grid gap-3 md:hidden">{visible.map(item => <article key={item.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><div className="flex items-start justify-between gap-3"><div><strong className="font-display text-lg">{item.bookingNumber}</strong><p className="mt-1 text-xs text-ink-soft">{t('bookings.totalGuests', { adults: item.adults, children: item.children })}</p></div><Badge tone={statusTone(item.status)}>{statusLabel(item.status, language)}</Badge></div><div className="mt-4 grid grid-cols-2 gap-3 rounded-xl bg-slate-50 p-3 text-xs"><div><span className="text-ink-soft">{t('bookings.checkIn')}</span><strong className="mt-1 block">{dateTime(item.expectedCheckInAt, language)}</strong></div><div><span className="text-ink-soft">{t('bookings.checkOut')}</span><strong className="mt-1 block">{dateTime(item.expectedCheckOutAt, language)}</strong></div></div><div className="mt-4 flex justify-end gap-2"><Button variant="secondary" onClick={() => openDetails(item.id)}><Eye size={16}/>{language === 'vi' ? 'Chi tiết' : 'Details'}</Button>{['PENDING','CONFIRMED'].includes(item.status) && <Button variant="danger" onClick={() => setCancelTarget(item)}><XCircle size={16}/>{t('common.cancel')}</Button>}</div></article>)}</div>}
-      <div className={`table-shell ${selfService ? 'hidden md:block' : ''}`}><table className="data-table"><thead><tr><th>{t('bookings.number')}</th><th>{t('bookings.checkIn')}</th><th>{t('bookings.checkOut')}</th><th>{t('bookings.guests')}</th><th>{t('bookings.status')}</th><th></th></tr></thead><tbody>{visible.map(item => <tr key={item.id}><td className="font-bold text-ink">{item.bookingNumber}</td><td>{dateTime(item.expectedCheckInAt, language)}</td><td>{dateTime(item.expectedCheckOutAt, language)}</td><td>{t('bookings.totalGuests', { adults: item.adults, children: item.children })}</td><td><Badge tone={statusTone(item.status)}>{statusLabel(item.status, language)}</Badge></td><td><div className="flex justify-end gap-2"><button title={text('Chi tiết', 'Details')} aria-label={text('Xem chi tiết đặt phòng', 'View booking details')} className="rounded-lg p-2 hover:bg-slate-100" onClick={() => openDetails(item.id)}><Eye size={18}/></button>{item.status === 'PENDING' && can('booking:write') && <Button variant="secondary" onClick={() => action.mutate({ id: item.id, kind: 'confirm' })}>{t('common.confirm')}</Button>}{item.status === 'CONFIRMED' && can('booking:checkin') && <Button variant="secondary" onClick={() => action.mutate({ id: item.id, kind: 'check-in' })}><DoorOpen size={15}/>{t('bookings.checkIn')}</Button>}{item.status === 'CHECKED_IN' && can('booking:checkout') && <Button variant="secondary" onClick={() => action.mutate({ id: item.id, kind: 'check-out' })}><DoorClosed size={15}/>{t('bookings.checkOut')}</Button>}{item.status === 'CHECKED_OUT' && can('payment:read') && <Button variant="secondary" onClick={() => navigate(`/billing?bookingId=${item.id}`)}><WalletCards size={15}/>{text('Thu ngân', 'Billing')}</Button>}{['PENDING','CONFIRMED'].includes(item.status) && (can('booking:write') || selfService) && <button title={t('common.cancel')} className="rounded-lg p-2 text-red-600 hover:bg-red-50" onClick={() => setCancelTarget(item)}><XCircle size={18}/></button>}</div></td></tr>)}</tbody></table>{!visible.length && <Empty text={selfService ? t('bookings.empty.customer') : text('Không tìm thấy đặt phòng phù hợp.', 'No matching bookings found.')}/>}</div>
+      <div className={`table-shell ${selfService ? 'hidden md:block' : ''}`}><table className="data-table"><thead><tr><th>{t('bookings.number')}</th><th>{t('bookings.checkIn')}</th><th>{t('bookings.checkOut')}</th><th>{t('bookings.guests')}</th><th>{t('bookings.status')}</th><th></th></tr></thead><tbody>{visible.map(item => <tr key={item.id}><td className="font-bold text-ink">{item.bookingNumber}</td><td>{dateTime(item.expectedCheckInAt, language)}</td><td>{dateTime(item.expectedCheckOutAt, language)}</td><td>{t('bookings.totalGuests', { adults: item.adults, children: item.children })}</td><td><Badge tone={statusTone(item.status)}>{statusLabel(item.status, language)}</Badge></td><td><div className="flex justify-end gap-2"><button title={text('Chi tiết', 'Details')} aria-label={text('Xem chi tiết đặt phòng', 'View booking details')} className="rounded-lg p-2 hover:bg-slate-100" onClick={() => openDetails(item.id)}><Eye size={18}/></button>{item.status === 'PENDING' && can('booking:write') && <Button variant="secondary" onClick={() => action.mutate({ id: item.id, kind: 'confirm' })}>{t('common.confirm')}</Button>}{item.status === 'CONFIRMED' && can('booking:checkin') && <Button variant="secondary" onClick={() => action.mutate({ id: item.id, kind: 'check-in' })}><DoorOpen size={15}/>{t('bookings.checkIn')}</Button>}{item.status === 'CONFIRMED' && can('booking:write') && new Date(item.expectedCheckInAt) <= new Date() && <Button variant="secondary" onClick={() => setNoShowTarget(item)}>{text('Không đến', 'No-show')}</Button>}{item.status === 'CHECKED_IN' && can('booking:checkout') && <Button variant="secondary" onClick={() => action.mutate({ id: item.id, kind: 'check-out' })}><DoorClosed size={15}/>{t('bookings.checkOut')}</Button>}{item.status === 'CHECKED_OUT' && can('payment:read') && <Button variant="secondary" onClick={() => navigate(`/billing?bookingId=${item.id}`)}><WalletCards size={15}/>{text('Thu ngân', 'Billing')}</Button>}{['PENDING','CONFIRMED'].includes(item.status) && (can('booking:write') || selfService) && <button title={t('common.cancel')} className="rounded-lg p-2 text-red-600 hover:bg-red-50" onClick={() => setCancelTarget(item)}><XCircle size={18}/></button>}</div></td></tr>)}</tbody></table>{!visible.length && <Empty text={selfService ? t('bookings.empty.customer') : text('Không tìm thấy đặt phòng phù hợp.', 'No matching bookings found.')}/>}</div>
       {!selfService && <Pagination page={data?.number ?? 0} totalPages={data?.totalPages ?? 0} onChange={setPage}/>}
     </Card>
     {creating && <CreateBookingModal
@@ -92,6 +94,14 @@ export function BookingsPage() {
     />}
     {details && <BookingDetailsModal bookingId={details} selfService={selfService} onClose={closeDialog}/>}
     {cancelTarget && <CancelBookingDialog bookingNumber={cancelTarget.bookingNumber} loading={action.isPending} onClose={() => setCancelTarget(null)} onConfirm={reason => action.mutate({ id: cancelTarget.id, kind: 'cancel', reason })}/>}
+    {noShowTarget && <ConfirmDialog
+      title={text('Xác nhận khách không đến?', 'Mark this booking as no-show?')}
+      description={text(`Đặt phòng ${noShowTarget.bookingNumber} sẽ giải phóng phòng đã giữ.`, `Booking ${noShowTarget.bookingNumber} will release its reserved rooms.`)}
+      confirmLabel={text('Xác nhận không đến', 'Confirm no-show')}
+      loading={action.isPending}
+      onCancel={() => setNoShowTarget(null)}
+      onConfirm={() => { action.mutate({ id: noShowTarget.id, kind: 'no-show' }); setNoShowTarget(null) }}
+    />}
   </>
 }
 
@@ -102,6 +112,9 @@ function BookingDetailsModal({ bookingId, selfService, onClose }: { bookingId: s
   const queryClient = useQueryClient()
   const bookingBase = selfService ? '/self/bookings' : '/bookings'
   const [confirmingCancellation, setConfirmingCancellation] = useState(false)
+  const [confirmingNoShow, setConfirmingNoShow] = useState(false)
+  const [addingGuest, setAddingGuest] = useState(false)
+  const [newGuest, setNewGuest] = useState({ fullName: '', nationality: 'VN', dateOfBirth: '' })
   const details = useQuery({ queryKey: ['booking', selfService ? 'self' : 'staff', bookingId], queryFn: () => api.get<BookingView>(`${bookingBase}/${bookingId}`).then(response => response.data) })
   const view = details.data
   const summary = view?.booking
@@ -112,7 +125,7 @@ function BookingDetailsModal({ bookingId, selfService, onClose }: { bookingId: s
   })
   const [usage, setUsage] = useState({ bookingRoomId: '', serviceId: '', quantity: 1, notes: '' })
   const refresh = () => {
-    queryClient.invalidateQueries({ queryKey: ['booking', bookingId] })
+    queryClient.invalidateQueries({ queryKey: ['booking'] })
     queryClient.invalidateQueries({ queryKey: ['bookings'] })
     queryClient.invalidateQueries({ queryKey: ['room-matrix'] })
     queryClient.invalidateQueries({ queryKey: ['dashboard'] })
@@ -130,6 +143,20 @@ function BookingDetailsModal({ bookingId, selfService, onClose }: { bookingId: s
     onSuccess: () => { toast.success(text('Đã ghi nhận dịch vụ vào phòng.', 'Service usage added to the room.')); setUsage({ bookingRoomId: '', serviceId: '', quantity: 1, notes: '' }); refresh() },
     onError: error => toast.error(errorMessage(error)),
   })
+  const addGuest = useMutation({
+    mutationFn: () => api.post(`${bookingBase}/${bookingId}/guests`, {
+      fullName: newGuest.fullName.trim(),
+      nationality: newGuest.nationality.trim().toUpperCase() || undefined,
+      dateOfBirth: newGuest.dateOfBirth || undefined,
+    }),
+    onSuccess: () => {
+      toast.success(text('Đã thêm khách đi cùng.', 'Guest added.'))
+      setNewGuest({ fullName: '', nationality: 'VN', dateOfBirth: '' })
+      setAddingGuest(false)
+      refresh()
+    },
+    onError: error => toast.error(errorMessage(error)),
+  })
 
   return <>
   <Modal title={summary ? `${language === 'vi' ? 'Đặt phòng' : 'Booking'} ${summary.bookingNumber}` : (language === 'vi' ? 'Chi tiết đặt phòng' : 'Booking details')} size="xl" onClose={onClose}>
@@ -141,15 +168,18 @@ function BookingDetailsModal({ bookingId, selfService, onClose }: { bookingId: s
         <div><span className="text-ink-soft">{t('bookings.checkOut')}</span><p className="font-semibold">{dateTime(summary.expectedCheckOutAt, language)}</p></div>
       </div>
       <div className="grid gap-5 md:grid-cols-2">
-        <div><h3 className="mb-2 font-bold">{language === 'vi' ? 'Khách lưu trú' : 'Guests'}</h3>{view.guests.map(guest => <div key={guest.id} className="border-t border-slate-100 py-2 text-sm">{guest.fullName} {guest.primary && <span className="text-gold">· {language === 'vi' ? 'Khách chính' : 'Primary guest'}</span>}</div>)}</div>
-        <div><h3 className="mb-2 font-bold">{text('Phòng đã chọn', 'Selected rooms')}</h3>{view.rooms.map(room => <div key={room.id} className="flex justify-between gap-3 border-t border-slate-100 py-2 text-sm"><span><strong>{text('Phòng', 'Room')} {room.roomNumber ?? '—'}</strong><small className="mt-0.5 block text-ink-soft">{room.roomTypeName ?? room.roomTypeCode ?? ''}{room.ratePlanName ? ` · ${room.ratePlanName}` : ''}</small></span><span className="shrink-0 font-bold">{money(Number(room.roomCharge), summary.currency)}</span></div>)}</div>
+        <div><div className="mb-2 flex items-center justify-between gap-2"><h3 className="font-bold">{language === 'vi' ? 'Khách lưu trú' : 'Guests'}</h3>{['PENDING', 'CONFIRMED', 'CHECKED_IN'].includes(summary.status) && view.guests.length < summary.adults + summary.children && <Button variant="secondary" onClick={() => setAddingGuest(true)}><UserPlus size={15}/>{text('Thêm khách', 'Add guest')}</Button>}</div>{view.guests.map(guest => <div key={guest.id} className="border-t border-slate-100 py-2 text-sm">{guest.fullName} {guest.primary && <span className="text-gold">· {language === 'vi' ? 'Khách chính' : 'Primary guest'}</span>}</div>)}<small className="mt-2 block text-ink-soft">{text(`Đã khai báo ${view.guests.length}/${summary.adults + summary.children} khách.`, `${view.guests.length}/${summary.adults + summary.children} guests declared.`)}</small></div>
+        <div><h3 className="mb-2 font-bold">{text('Phòng đã chọn', 'Selected rooms')}</h3>{view.rooms.map(room => {
+          const derivedRateCode = room.roomTypeCode ? `${room.roomTypeCode}-${room.pricingUnit === 'HOURLY' ? 'HOUR' : room.pricingUnit === 'DAILY' ? 'DAY' : 'NIGHT'}` : undefined
+          return <div key={room.id} className="flex justify-between gap-3 border-t border-slate-100 py-2 text-sm"><span><strong>{text('Phòng', 'Room')} {room.roomNumber ?? '—'}</strong><small className="mt-0.5 block text-ink-soft">{catalogName(room.roomTypeCode, room.roomTypeName ?? room.roomTypeCode ?? '', language)}{room.ratePlanName ? ` · ${ratePlanName(derivedRateCode, room.ratePlanName, language)}` : ''}</small></span><span className="shrink-0 font-bold">{money(Number(room.roomCharge), summary.currency)}</span></div>
+        })}</div>
       </div>
       {selfService && <CustomerDepositPanel bookingId={bookingId}/>} 
       {summary.status === 'CHECKED_IN' && can('service:write') && <div className="rounded-2xl border border-gold-soft bg-amber-50/40 p-4">
         <h3 className="mb-3 font-bold">{text('Thêm dịch vụ sử dụng', 'Add service usage')}</h3>
         <div className="grid gap-3 sm:grid-cols-2">
           <select aria-label={text('Phòng sử dụng dịch vụ', 'Room receiving the service')} className="field" value={usage.bookingRoomId} onChange={event => setUsage(previous => ({ ...previous, bookingRoomId: event.target.value }))}><option value="">{text('Chọn phòng đã phân', 'Select assigned room')}</option>{view.rooms.map(room => <option key={room.id} value={room.id}>{text('Phòng', 'Room')} {room.roomNumber ?? '—'} · {room.roomTypeName ?? ''}</option>)}</select>
-          <select aria-label={text('Dịch vụ', 'Service')} className="field" value={usage.serviceId} onChange={event => setUsage(previous => ({ ...previous, serviceId: event.target.value }))}><option value="">{text('Chọn dịch vụ', 'Select service')}</option>{services.data?.filter(service => service.active).map(service => <option key={service.id} value={service.id}>{service.name} · {money(Number(service.unitPrice))}</option>)}</select>
+          <select aria-label={text('Dịch vụ', 'Service')} className="field" value={usage.serviceId} onChange={event => setUsage(previous => ({ ...previous, serviceId: event.target.value }))}><option value="">{text('Chọn dịch vụ', 'Select service')}</option>{services.data?.filter(service => service.active).map(service => <option key={service.id} value={service.id}>{catalogName(service.code, service.name, language)} · {money(Number(service.unitPrice))}</option>)}</select>
           <input aria-label={text('Số lượng dịch vụ', 'Service quantity')} type="number" min={0.01} step={0.01} className="field" value={usage.quantity} onChange={event => setUsage(previous => ({ ...previous, quantity: Number(event.target.value) }))}/>
           <input aria-label={text('Ghi chú dịch vụ', 'Service notes')} className="field" placeholder={text('Ghi chú', 'Notes')} value={usage.notes} onChange={event => setUsage(previous => ({ ...previous, notes: event.target.value }))}/>
         </div>
@@ -158,6 +188,7 @@ function BookingDetailsModal({ bookingId, selfService, onClose }: { bookingId: s
       <div className="flex flex-wrap justify-end gap-3 border-t border-slate-100 pt-5">
         {summary.status === 'PENDING' && can('booking:write') && <Button loading={lifecycle.isPending} onClick={() => lifecycle.mutate({ kind: 'confirm' })}>{text('Xác nhận đặt phòng', 'Confirm booking')}</Button>}
         {summary.status === 'CONFIRMED' && can('booking:checkin') && <Button loading={lifecycle.isPending} onClick={() => lifecycle.mutate({ kind: 'check-in' })}><DoorOpen size={16}/>{text('Nhận phòng', 'Check in')}</Button>}
+        {summary.status === 'CONFIRMED' && can('booking:write') && new Date(summary.expectedCheckInAt) <= new Date() && <Button variant="secondary" onClick={() => setConfirmingNoShow(true)}>{text('Khách không đến', 'Mark no-show')}</Button>}
         {summary.status === 'CHECKED_IN' && can('booking:checkout') && <Button loading={lifecycle.isPending} onClick={() => lifecycle.mutate({ kind: 'check-out' })}><DoorClosed size={16}/>{text('Trả phòng', 'Check out')}</Button>}
         {summary.status === 'CHECKED_OUT' && can('payment:read') && <Button onClick={() => navigate(`/billing?bookingId=${bookingId}`)}><WalletCards size={16}/>{text('Mở thu ngân', 'Open billing')}</Button>}
         {['PENDING', 'CONFIRMED'].includes(summary.status) && (can('booking:write') || selfService) && <Button variant="danger" onClick={() => setConfirmingCancellation(true)}><XCircle size={16}/>{language === 'vi' ? 'Hủy đặt phòng' : 'Cancel booking'}</Button>}
@@ -165,6 +196,22 @@ function BookingDetailsModal({ bookingId, selfService, onClose }: { bookingId: s
     </div>}
   </Modal>
   {confirmingCancellation && summary && <CancelBookingDialog bookingNumber={summary.bookingNumber} loading={lifecycle.isPending} onClose={() => setConfirmingCancellation(false)} onConfirm={reason => lifecycle.mutate({ kind: 'cancel', reason })}/>}
+  {confirmingNoShow && summary && <ConfirmDialog
+    title={text('Xác nhận khách không đến?', 'Mark this booking as no-show?')}
+    description={text(`Đặt phòng ${summary.bookingNumber} sẽ giải phóng phòng đã giữ.`, `Booking ${summary.bookingNumber} will release its reserved rooms.`)}
+    confirmLabel={text('Xác nhận không đến', 'Confirm no-show')}
+    loading={lifecycle.isPending}
+    onCancel={() => setConfirmingNoShow(false)}
+    onConfirm={() => { lifecycle.mutate({ kind: 'no-show' }); setConfirmingNoShow(false) }}
+  />}
+  {addingGuest && <Modal title={text('Thêm khách đi cùng', 'Add accompanying guest')} size="sm" onClose={() => setAddingGuest(false)}>
+    <div className="space-y-4">
+      <label className="block"><span className="label">{text('Họ và tên', 'Full name')}</span><input autoFocus className="field" maxLength={150} value={newGuest.fullName} onChange={event => setNewGuest(previous => ({ ...previous, fullName: event.target.value }))}/></label>
+      <label className="block"><span className="label">{text('Quốc tịch (mã 2 chữ cái)', 'Nationality (2-letter code)')}</span><input className="field uppercase" maxLength={2} value={newGuest.nationality} onChange={event => setNewGuest(previous => ({ ...previous, nationality: event.target.value.toUpperCase().replace(/[^A-Z]/g, '') }))}/></label>
+      <label className="block"><span className="label">{text('Ngày sinh', 'Date of birth')}</span><input type="date" className="field" max={new Date().toISOString().slice(0, 10)} value={newGuest.dateOfBirth} onChange={event => setNewGuest(previous => ({ ...previous, dateOfBirth: event.target.value }))}/></label>
+      <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end"><Button variant="secondary" onClick={() => setAddingGuest(false)}>{text('Đóng', 'Close')}</Button><Button loading={addGuest.isPending} disabled={newGuest.fullName.trim().length < 2 || (newGuest.nationality.length > 0 && newGuest.nationality.length !== 2)} onClick={() => addGuest.mutate()}>{text('Lưu khách', 'Save guest')}</Button></div>
+    </div>
+  </Modal>}
   </>
 }
 
@@ -175,8 +222,8 @@ function CancelBookingDialog({ bookingNumber, loading, onClose, onConfirm }: { b
   return <Modal title={title} size="sm" onClose={onClose}>
     <div className="rounded-2xl border border-red-100 bg-red-50 p-4 text-sm text-red-900">
       {language === 'vi'
-        ? <>Bạn có chắc muốn hủy đặt phòng <strong>{bookingNumber}</strong>? Thao tác này sẽ giải phóng phòng đã giữ và không thể hoàn tác trực tiếp.</>
-        : <>Are you sure you want to cancel booking <strong>{bookingNumber}</strong>? Reserved rooms will be released.</>}
+        ? <>Bạn có chắc muốn hủy đặt phòng <strong>{bookingNumber}</strong>? Phòng đã giữ sẽ được giải phóng. Tiền cọc, nếu có, không tự động hoàn và cần được lễ tân xử lý theo chính sách giá.</>
+        : <>Are you sure you want to cancel booking <strong>{bookingNumber}</strong>? Reserved rooms will be released. Any paid deposit is not refunded automatically and must be handled by staff under the rate policy.</>}
     </div>
     <label className="mt-4 block"><span className="label">{language === 'vi' ? 'Lý do hủy' : 'Cancellation reason'}</span><textarea autoFocus className="field min-h-24" maxLength={500} placeholder={language === 'vi' ? 'Ví dụ: Khách thay đổi kế hoạch' : 'Example: Travel plans changed'} value={reason} onChange={event => setReason(event.target.value)}/><small className="mt-1 block text-xs text-ink-soft">{reason.length}/500</small></label>
     <div className="mt-5 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end"><Button variant="secondary" onClick={onClose}>{language === 'vi' ? 'Giữ đặt phòng' : 'Keep booking'}</Button><Button variant="danger" loading={loading} disabled={reason.trim().length < 3} onClick={() => onConfirm(reason.trim())}>{language === 'vi' ? 'Xác nhận hủy' : 'Confirm cancellation'}</Button></div>
@@ -223,7 +270,7 @@ function CreateBookingModal({ initialRoomId, initialRoomTypeId, initialCheckIn, 
     const physicalRooms = (availableRooms.data ?? []).filter(room => room.roomTypeId === roomType.id && room.operationalStatus === 'AVAILABLE')
     const typeRates = (rates.data ?? []).filter(rate => rate.active && rate.roomTypeId === roomType.id && (!roomFilters.pricingUnit || rate.pricingUnit === roomFilters.pricingUnit))
       .map(rate => ({ rate, total: estimatedTotal(rate) })).sort((left, right) => left.total - right.total)
-    const amenityNames = (amenities.data ?? []).filter(item => item.roomTypes.some(assignment => assignment.roomTypeId === roomType.id)).map(item => item.amenity.name)
+    const amenityNames = (amenities.data ?? []).filter(item => item.roomTypes.some(assignment => assignment.roomTypeId === roomType.id)).map(item => catalogName(item.amenity.code, item.amenity.name, language))
     return { roomType, physicalRooms, rates: typeRates, cheapest: typeRates[0], amenityNames, index }
   }).filter(offer => offer.physicalRooms.length > 0
     && offer.roomType.capacityAdults >= requestedAdults
@@ -327,8 +374,8 @@ function CreateBookingModal({ initialRoomId, initialRoomTypeId, initialCheckIn, 
             const preferred = offer.roomType.id === initialRoomTypeId
             return <button key={offer.roomType.id} type="button" disabled={!canChoose} onClick={() => chooseOffer(offer)} className={`group relative min-h-56 overflow-hidden rounded-3xl bg-gradient-to-br p-5 text-left shadow-lg transition duration-500 ease-out hover:-translate-y-1 hover:scale-[1.01] hover:shadow-2xl disabled:cursor-not-allowed disabled:opacity-60 ${preferred ? 'ring-4 ring-gold/40' : ''} ${styles[offerIndex % styles.length]}`}>
               <span className="absolute -right-12 -top-14 size-44 rounded-full border border-white/15 transition duration-700 group-hover:scale-125"/>
-              <div className="relative flex h-full flex-col"><div className="flex items-start justify-between gap-4"><div><span className="text-[11px] font-extrabold uppercase tracking-[.22em] text-white/70">{offer.roomType.code}{preferred ? ` · ${language === 'vi' ? 'Bạn vừa chọn' : 'Your selection'}` : ''}</span><h5 className="mt-2 font-display text-2xl font-bold">{offer.roomType.name}</h5></div><span className="rounded-2xl border border-white/20 bg-white/10 p-3"><BedDouble size={22}/></span></div>
-                <p className="mt-3 line-clamp-2 text-sm leading-6 text-white/75">{offer.roomType.description || (language === 'vi' ? 'Không gian nghỉ ngơi tiện nghi, phù hợp với nhu cầu của bạn.' : 'A comfortable space tailored to your stay.')}</p>
+              <div className="relative flex h-full flex-col"><div className="flex items-start justify-between gap-4"><div><span className="text-[11px] font-extrabold uppercase tracking-[.22em] text-white/70">{offer.roomType.code}{preferred ? ` · ${language === 'vi' ? 'Bạn vừa chọn' : 'Your selection'}` : ''}</span><h5 className="mt-2 font-display text-2xl font-bold">{catalogName(offer.roomType.code, offer.roomType.name, language)}</h5></div><span className="rounded-2xl border border-white/20 bg-white/10 p-3"><BedDouble size={22}/></span></div>
+                <p className="mt-3 line-clamp-2 text-sm leading-6 text-white/75">{catalogDescription(offer.roomType.code, offer.roomType.description, language) || (language === 'vi' ? 'Không gian nghỉ ngơi tiện nghi, phù hợp với nhu cầu của bạn.' : 'A comfortable space tailored to your stay.')}</p>
                 <div className="mt-3 flex flex-wrap gap-2 text-xs text-white/85"><span className="flex items-center gap-1 rounded-full bg-black/15 px-2.5 py-1"><UsersRound size={13}/>{offer.roomType.capacityAdults} {language === 'vi' ? 'người lớn' : 'adults'} · {offer.roomType.capacityChildren} {language === 'vi' ? 'trẻ em' : 'children'}</span>{offer.amenityNames.slice(0, 2).map(name => <span key={name} className="rounded-full bg-white/10 px-2.5 py-1">{name}</span>)}</div>
                 <div className="mt-auto flex items-end justify-between gap-3 pt-5"><div><small className="block text-white/65">{language === 'vi' ? 'Tổng kỳ nghỉ từ' : 'Estimated stay from'}</small><strong className="font-display text-2xl">{money(offer.cheapest?.total ?? 0, 'VND', language)}</strong><small className="ml-1 text-white/65">· {pricingUnitLabel(offer.cheapest?.rate.pricingUnit ?? '', language)}</small></div><span className="rounded-xl bg-white px-3 py-2 text-xs font-extrabold text-slate-900 shadow">{canChoose ? (language === 'vi' ? 'Chọn hạng' : 'Select') : (language === 'vi' ? 'Đã chọn hết' : 'Selected')}</span></div>
               </div>
@@ -356,9 +403,9 @@ function CreateBookingModal({ initialRoomId, initialRoomTypeId, initialCheckIn, 
                 })
               }}><option value="">{text('Chọn phòng trống', 'Select an available room')}</option>{roomOptions.map(room => {
                 const roomType = roomTypes.data?.find(item => item.id === room.roomTypeId)
-                return <option key={room.id} value={room.id}>{text('Phòng', 'Room')} {room.roomNumber}{roomType ? ` · ${roomType.name} · ${roomType.capacityAdults} ${text('người lớn', 'adults')} + ${roomType.capacityChildren} ${text('trẻ em', 'children')}` : ''}</option>
+                return <option key={room.id} value={room.id}>{text('Phòng', 'Room')} {room.roomNumber}{roomType ? ` · ${catalogName(roomType.code, roomType.name, language)} · ${roomType.capacityAdults} ${text('người lớn', 'adults')} + ${roomType.capacityChildren} ${text('trẻ em', 'children')}` : ''}</option>
               })}{draft.roomId && !roomOptions.some(room => room.id === draft.roomId) && selectedRoom && <option value={selectedRoom.id}>{text('Phòng', 'Room')} {selectedRoom.roomNumber} · {text('không còn trống', 'unavailable')}</option>}</select>{unavailable && <small className="mt-1 block text-xs text-red-700">{text('Phòng không trống trong thời gian này.', 'This room is unavailable for the selected dates.')}</small>}</label>
-              <label><span className="label">{text('Gói giá', 'Rate plan')}</span><select className="field" value={draft.ratePlanId} disabled={!selectedRoom || unavailable} onChange={event => updateRoom(draft.key, { ratePlanId: event.target.value })}><option value="">{text('Chọn gói giá', 'Select rate plan')}</option>{rateOptions.map(rate => <option key={rate.id} value={rate.id}>{rate.name} · {formatCurrency(Number(rate.rate))}/{pricingUnitLabel(rate.pricingUnit, language)}</option>)}</select></label>
+              <label><span className="label">{text('Gói giá', 'Rate plan')}</span><select className="field" value={draft.ratePlanId} disabled={!selectedRoom || unavailable} onChange={event => updateRoom(draft.key, { ratePlanId: event.target.value })}><option value="">{text('Chọn gói giá', 'Select rate plan')}</option>{rateOptions.map(rate => <option key={rate.id} value={rate.id}>{ratePlanName(rate.code, rate.name, language)} · {formatCurrency(Number(rate.rate))}/{pricingUnitLabel(rate.pricingUnit, language)}</option>)}</select></label>
               <label><span className="label">{text('Người lớn', 'Adults')}</span><input type="number" inputMode="numeric" min={1} max={selectedRoomType?.capacityAdults} disabled={!selectedRoomType} className="field" value={draft.adults} onChange={event => updateRoom(draft.key, { adults: clampGuestCount(event.target.value, 1, selectedRoomType?.capacityAdults ?? 1) })}/>{selectedRoomType && <small className="mt-1 block text-xs text-ink-soft">{text(`Từ 1 đến ${selectedRoomType.capacityAdults} người lớn.`, `From 1 to ${selectedRoomType.capacityAdults} adults.`)}</small>}</label>
               <label><span className="label">{text('Trẻ em', 'Children')}</span><input type="number" inputMode="numeric" min={0} max={selectedRoomType?.capacityChildren} disabled={!selectedRoomType || selectedRoomType.capacityChildren === 0} className="field" value={draft.children} onChange={event => updateRoom(draft.key, { children: clampGuestCount(event.target.value, 0, selectedRoomType?.capacityChildren ?? 0) })}/>{selectedRoomType && <small className="mt-1 block text-xs text-ink-soft">{selectedRoomType.capacityChildren > 0 ? text(`Tối đa ${selectedRoomType.capacityChildren} trẻ em.`, `Up to ${selectedRoomType.capacityChildren} children.`) : text('Hạng phòng này không nhận thêm trẻ em.', 'This room class does not allow additional children.')}</small>}</label>
             </div>

@@ -22,7 +22,7 @@ import {
 } from 'lucide-react'
 import { useAuth } from '../auth/AuthProvider'
 import { defaultAuthenticatedRoute } from '../auth/routes'
-import heroImage from '../assets/grandstay-hero.png'
+import heroImage from '../assets/grandstay-hero.webp'
 import journeyDuringImage from '../assets/journey-during.webp'
 import journeyAfterImage from '../assets/journey-after.webp'
 import { LanguageToggle, useI18n } from '../i18n'

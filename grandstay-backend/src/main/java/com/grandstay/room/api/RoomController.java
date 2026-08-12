@@ -7,6 +7,7 @@ public class RoomController {private final RoomCatalogApplicationService service
  @GetMapping("/available") @PreAuthorize("hasAuthority('room:read')") public List<RoomDto> available(@RequestParam Instant from,@RequestParam Instant to){return service.availableRooms(from,to);}
  @PostMapping @ResponseStatus(HttpStatus.CREATED) @PreAuthorize("hasAuthority('room:write')") public RoomDto create(@Valid @RequestBody RoomRequest r){return service.createRoom(r.command());}
  @PutMapping("/{id}") @PreAuthorize("hasAuthority('room:write')") public RoomDto update(@PathVariable UUID id,@Valid @RequestBody RoomRequest r){return service.updateRoom(id,r.command());}
+ @PostMapping("/{id}/complete-cleaning") @PreAuthorize("hasAuthority('room:write')") public RoomDto completeCleaning(@PathVariable UUID id){return service.completeCleaning(id);}
  @DeleteMapping("/{id}") @ResponseStatus(HttpStatus.NO_CONTENT) @PreAuthorize("hasAuthority('room:write')") public void delete(@PathVariable UUID id){service.deleteRoom(id);}
  public record RoomMatrixResponse(UUID roomId,String roomNumber,UUID floorId,String floorName,Integer floorNumber,UUID roomTypeId,String roomTypeName,String displayStatus,UUID bookingId){}
  public record RoomRequest(@NotBlank @Size(max=20) String roomNumber,@NotNull UUID floorId,@NotNull UUID roomTypeId,@NotNull RoomOperationalStatus status,@Size(max=1000) String notes){RoomCommand command(){return new RoomCommand(roomNumber,floorId,roomTypeId,status,notes);}}

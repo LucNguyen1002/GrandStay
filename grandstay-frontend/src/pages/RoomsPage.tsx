@@ -1,12 +1,14 @@
 import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { BedDouble, CalendarClock, ChevronRight, RefreshCw, SlidersHorizontal, Sparkles, UsersRound } from 'lucide-react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
+import { toast } from 'sonner'
 import { api, errorMessage } from '../api/client'
 import type { AmenityView, Page, RatePlan, RoomMatrix, RoomType } from '../api/types'
 import { Badge, Button, Card, Empty, ErrorState, Loading, PageHeader, statusTone } from '../components/ui'
 import { useAuth } from '../auth/AuthProvider'
 import { useI18n, type Language } from '../i18n'
+import { catalogDescription, catalogName } from '../i18n/catalog'
 
 const dots: Record<string, string> = {
   AVAILABLE: 'bg-emerald-500',
@@ -51,6 +53,7 @@ export function RoomsPage() {
   const [selectedType, setSelectedType] = useState('')
   const customerDiscovery = hasRole('CUSTOMER') && !can('booking:read')
   const canCreateBooking = can('booking:write') || hasRole('CUSTOMER')
+  const canManageRooms = can('room:write')
   const query = useQuery({
     queryKey: ['room-matrix'],
     enabled: !customerDiscovery,
@@ -64,6 +67,14 @@ export function RoomsPage() {
     },
     refetchInterval: 60_000,
   })
+  const completeCleaning = useMutation({
+    mutationFn: (roomId: string) => api.post(`/rooms/${roomId}/complete-cleaning`),
+    onSuccess: () => {
+      toast.success(text('Phòng đã sẵn sàng đón khách.', 'Room is ready for the next guest.'))
+      void query.refetch()
+    },
+    onError: error => toast.error(errorMessage(error)),
+  })
   if (customerDiscovery) return <CustomerRoomDiscovery />
   if (query.isLoading) return <Loading />
   if (query.error) return <ErrorState message={errorMessage(query.error)} onRetry={() => void query.refetch()} />
@@ -76,7 +87,7 @@ export function RoomsPage() {
     const nightlyRate = rates.filter(rate => rate.pricingUnit === 'NIGHTLY').sort((left, right) => Number(left.rate) - Number(right.rate))[0]
     return {
       ...roomType,
-      displayName: classNameFor(roomType.name, roomType.code, language),
+      displayName: catalogName(roomType.code, classNameFor(roomType.name, roomType.code, language), language),
       palette: roomClassPalettes[index % roomClassPalettes.length],
       total: typeRooms.length,
       available: typeRooms.filter(room => room.displayStatus === 'AVAILABLE').length,
@@ -91,7 +102,8 @@ export function RoomsPage() {
   }, {})
   const floors = Object.entries(grouped).sort((left, right) => Number(left[0].split('|')[0]) - Number(right[0].split('|')[0]))
   const openRoom = (room: RoomMatrix) => {
-    if (room.bookingId && can('booking:read')) navigate(`/bookings?bookingId=${room.bookingId}`)
+    if (room.displayStatus === 'CLEANING' && canManageRooms) completeCleaning.mutate(room.roomId)
+    else if (room.bookingId && can('booking:read')) navigate(`/bookings?bookingId=${room.bookingId}`)
     else if (room.displayStatus === 'AVAILABLE' && canCreateBooking) navigate(`/bookings?new=1&roomId=${room.roomId}`)
   }
 
@@ -121,10 +133,12 @@ export function RoomsPage() {
     </div>
     <div className="space-y-5">
       {floors.map(([key, floorRooms]) => <Card key={key}>
-        <div className="mb-4 flex items-center justify-between"><h2 className="font-display text-xl font-bold">{key.split('|')[1]}</h2><span className="text-xs text-ink-soft">{floorRooms.length} {text('phòng', 'rooms')}</span></div>
+        <div className="mb-4 flex items-center justify-between"><h2 className="font-display text-xl font-bold">{language === 'en' ? `Floor ${key.split('|')[0]}` : key.split('|')[1]}</h2><span className="text-xs text-ink-soft">{floorRooms.length} {text('phòng', 'rooms')}</span></div>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6">
           {floorRooms.map(room => {
-            const actionable = (Boolean(room.bookingId) && can('booking:read')) || (room.displayStatus === 'AVAILABLE' && canCreateBooking)
+            const actionable = (Boolean(room.bookingId) && can('booking:read'))
+              || (room.displayStatus === 'AVAILABLE' && canCreateBooking)
+              || (room.displayStatus === 'CLEANING' && canManageRooms)
             const roomType = roomTypes.find(item => item.id === room.roomTypeId)
             const palette = roomType?.palette ?? roomClassPalettes[0]
             return <button
@@ -141,6 +155,7 @@ export function RoomsPage() {
               <div className="mt-2"><Badge tone={statusTone(room.displayStatus)}>{labels[room.displayStatus] ?? room.displayStatus}</Badge></div>
               {room.bookingId && can('booking:read') && <div className="mt-3 flex items-center gap-1 text-[11px] text-ink-soft"><CalendarClock size={12}/>{text('Mở hồ sơ lưu trú', 'Open stay record')}<ChevronRight size={12} className="ml-auto transition-transform group-hover:translate-x-0.5"/></div>}
               {!room.bookingId && room.displayStatus === 'AVAILABLE' && canCreateBooking && <div className="mt-3 flex items-center text-[11px] font-semibold text-forest">{text('Chọn phòng này', 'Choose this room')}<ChevronRight size={12} className="ml-auto transition-transform group-hover:translate-x-0.5"/></div>}
+              {room.displayStatus === 'CLEANING' && canManageRooms && <div className="mt-3 flex items-center text-[11px] font-semibold text-violet-800">{completeCleaning.isPending && completeCleaning.variables === room.roomId ? text('Đang cập nhật…', 'Updating…') : text('Đánh dấu đã dọn xong', 'Mark cleaning complete')}<ChevronRight size={12} className="ml-auto transition-transform group-hover:translate-x-0.5"/></div>}
             </button>
           })}
         </div>
@@ -174,7 +189,7 @@ function CustomerRoomDiscovery() {
   const results = catalog.data.types.map((roomType, index) => {
     const rates = catalog.data.rates.filter(rate => rate.roomTypeId === roomType.id && rate.active)
     const nightly = rates.find(rate => rate.pricingUnit === 'NIGHTLY') ?? rates.sort((left, right) => Number(left.rate) - Number(right.rate))[0]
-    const amenityNames = catalog.data.amenities.filter(item => item.roomTypes.some(assignment => assignment.roomTypeId === roomType.id)).map(item => item.amenity.name)
+    const amenityNames = catalog.data.amenities.filter(item => item.roomTypes.some(assignment => assignment.roomTypeId === roomType.id)).map(item => catalogName(item.amenity.code, item.amenity.name, language))
     return { roomType, nightly, amenityNames, index }
   }).filter(item => item.roomType.capacityAdults >= adults && item.roomType.capacityChildren >= children
     && Number(item.nightly?.rate ?? item.roomType.baseNightlyRate) <= maxNightly
@@ -188,11 +203,11 @@ function CustomerRoomDiscovery() {
     <PageHeader title={t('rooms.title.customer')} description={t('rooms.description.customer')} />
     <Card className="mb-5">
       <div className="mb-4 flex items-center gap-2"><SlidersHorizontal size={18}/><h2 className="font-display text-lg font-bold">{text('Nhu cầu lưu trú', 'Stay preferences')}</h2></div>
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4"><label><span className="label">{text('Người lớn', 'Adults')}</span><input className="field" type="number" min={1} max={10} value={filters.adults} onChange={event => setFilters(previous => ({ ...previous, adults: event.target.value }))}/></label><label><span className="label">{text('Trẻ em', 'Children')}</span><input className="field" type="number" min={0} max={10} value={filters.children} onChange={event => setFilters(previous => ({ ...previous, children: event.target.value }))}/></label><label><span className="label">{text('Giá tối đa mỗi đêm', 'Maximum nightly rate')}</span><input className="field" type="number" min={0} step={50000} placeholder={text('Không giới hạn', 'No limit')} value={filters.maxNightly} onChange={event => setFilters(previous => ({ ...previous, maxNightly: event.target.value }))}/></label><label><span className="label">{text('Tiện nghi mong muốn', 'Preferred amenity')}</span><select className="field" value={filters.amenityId} onChange={event => setFilters(previous => ({ ...previous, amenityId: event.target.value }))}><option value="">{text('Tất cả', 'All')}</option>{catalog.data.amenities.map(item => <option key={item.amenity.id} value={item.amenity.id}>{item.amenity.name}</option>)}</select></label></div>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4"><label><span className="label">{text('Người lớn', 'Adults')}</span><input className="field" type="number" min={1} max={10} value={filters.adults} onChange={event => setFilters(previous => ({ ...previous, adults: event.target.value }))}/></label><label><span className="label">{text('Trẻ em', 'Children')}</span><input className="field" type="number" min={0} max={10} value={filters.children} onChange={event => setFilters(previous => ({ ...previous, children: event.target.value }))}/></label><label><span className="label">{text('Giá tối đa mỗi đêm', 'Maximum nightly rate')}</span><input className="field" type="number" min={0} step={50000} placeholder={text('Không giới hạn', 'No limit')} value={filters.maxNightly} onChange={event => setFilters(previous => ({ ...previous, maxNightly: event.target.value }))}/></label><label><span className="label">{text('Tiện nghi mong muốn', 'Preferred amenity')}</span><select className="field" value={filters.amenityId} onChange={event => setFilters(previous => ({ ...previous, amenityId: event.target.value }))}><option value="">{text('Tất cả', 'All')}</option>{catalog.data.amenities.map(item => <option key={item.amenity.id} value={item.amenity.id}>{catalogName(item.amenity.code, item.amenity.name, language)}</option>)}</select></label></div>
     </Card>
     <div className="grid gap-5 lg:grid-cols-2">{results.map((item, visibleIndex) => {
       const rate = Number(item.nightly?.rate ?? item.roomType.baseNightlyRate)
-      return <article key={item.roomType.id} className={`group relative min-h-80 overflow-hidden rounded-[2rem] bg-gradient-to-br ${roomClassPalettes[visibleIndex % roomClassPalettes.length].gradient} p-6 text-white shadow-xl transition duration-500 hover:-translate-y-1 hover:shadow-2xl sm:p-8`}><span className="absolute -right-16 -top-16 size-64 rounded-full border border-white/10 transition duration-700 group-hover:scale-110"/><div className="relative flex h-full flex-col"><div className="flex items-start justify-between"><div><span className="text-xs font-extrabold uppercase tracking-[.22em] text-white/65">{item.roomType.code}</span><h2 className="mt-3 font-display text-3xl font-black">{classNameFor(item.roomType.name, item.roomType.code, language)}</h2></div><span className="grid size-14 place-items-center rounded-2xl border border-white/15 bg-white/10"><BedDouble size={25}/></span></div><p className="mt-4 line-clamp-3 max-w-xl text-sm leading-7 text-white/75">{item.roomType.description}</p><div className="mt-4 flex flex-wrap gap-2"><span className="flex items-center gap-1.5 rounded-full bg-black/15 px-3 py-1.5 text-xs"><UsersRound size={14}/>{t('rooms.capacity', { adults: item.roomType.capacityAdults, children: item.roomType.capacityChildren })}</span>{item.amenityNames.slice(0, 3).map(name => <span key={name} className="rounded-full bg-white/10 px-3 py-1.5 text-xs">{name}</span>)}</div><div className="mt-auto flex flex-col gap-4 pt-8 sm:flex-row sm:items-end sm:justify-between"><div><small className="text-white/65">{t('rooms.from')}</small><p className="font-display text-3xl font-black">{money(rate)}<span className="ml-1 text-sm font-medium text-white/65">{t('rooms.perNight')}</span></p></div><Button className="bg-white text-ink hover:bg-amber-50" onClick={() => startBooking(item.roomType.id)}><Sparkles size={16}/>{text('Chọn hạng phòng', 'Choose this class')}<ChevronRight size={16}/></Button></div></div></article>
+      return <article key={item.roomType.id} className={`group relative min-h-80 overflow-hidden rounded-[2rem] bg-gradient-to-br ${roomClassPalettes[visibleIndex % roomClassPalettes.length].gradient} p-6 text-white shadow-xl transition duration-500 hover:-translate-y-1 hover:shadow-2xl sm:p-8`}><span className="absolute -right-16 -top-16 size-64 rounded-full border border-white/10 transition duration-700 group-hover:scale-110"/><div className="relative flex h-full flex-col"><div className="flex items-start justify-between"><div><span className="text-xs font-extrabold uppercase tracking-[.22em] text-white/65">{item.roomType.code}</span><h2 className="mt-3 font-display text-3xl font-black">{catalogName(item.roomType.code, classNameFor(item.roomType.name, item.roomType.code, language), language)}</h2></div><span className="grid size-14 place-items-center rounded-2xl border border-white/15 bg-white/10"><BedDouble size={25}/></span></div><p className="mt-4 line-clamp-3 max-w-xl text-sm leading-7 text-white/75">{catalogDescription(item.roomType.code, item.roomType.description, language)}</p><div className="mt-4 flex flex-wrap gap-2"><span className="flex items-center gap-1.5 rounded-full bg-black/15 px-3 py-1.5 text-xs"><UsersRound size={14}/>{t('rooms.capacity', { adults: item.roomType.capacityAdults, children: item.roomType.capacityChildren })}</span>{item.amenityNames.slice(0, 3).map(name => <span key={name} className="rounded-full bg-white/10 px-3 py-1.5 text-xs">{name}</span>)}</div><div className="mt-auto flex flex-col gap-4 pt-8 sm:flex-row sm:items-end sm:justify-between"><div><small className="text-white/65">{t('rooms.from')}</small><p className="font-display text-3xl font-black">{money(rate)}<span className="ml-1 text-sm font-medium text-white/65">{t('rooms.perNight')}</span></p></div><Button className="bg-white text-ink hover:bg-amber-50" onClick={() => startBooking(item.roomType.id)}><Sparkles size={16}/>{text('Chọn hạng phòng', 'Choose this class')}<ChevronRight size={16}/></Button></div></div></article>
     })}</div>
     {!results.length && <Card><Empty text={text('Không có hạng phòng phù hợp. Hãy nới bộ lọc để xem thêm lựa chọn.', 'No room class matches your filters. Try broadening your preferences.')}/></Card>}
   </>

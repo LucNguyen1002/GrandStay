@@ -90,7 +90,7 @@ export function AppShell() {
       </div>
     </aside>
 
-    <div className={`transition-[padding] duration-300 ease-out ${compact ? 'lg:pl-21' : 'lg:pl-68'}`}>
+    <div className={`min-w-0 transition-[padding] duration-300 ease-out ${compact ? 'lg:pl-21' : 'lg:pl-68'}`}>
       <header className="app-header sticky top-0 z-20 flex h-20 items-center justify-between border-b border-slate-200/70 bg-canvas/90 px-4 backdrop-blur-xl sm:px-7">
         <div className="flex min-w-0 items-center gap-3">
           <button type="button" aria-label={text('Mở trình đơn', 'Open menu')} className="icon-button rounded-xl border border-slate-200 bg-white p-2 lg:hidden" onClick={() => setOpen(true)}><Menu/></button>
@@ -118,7 +118,7 @@ export function AppShell() {
           </div>
         </div>
       </header>
-      <main className="p-4 sm:p-7 lg:p-9"><div key={location.pathname} className="page-enter"><Outlet /></div></main>
+      <main className="min-w-0 overflow-x-hidden p-4 sm:p-7 lg:p-9"><div key={location.pathname} className="page-enter min-w-0 max-w-full"><Outlet /></div></main>
     </div>
   </div>
 }
