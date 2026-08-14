@@ -1,5 +1,5 @@
 package com.grandstay.booking.infrastructure;
-import java.time.Instant; import java.util.*; import com.grandstay.booking.domain.Booking; import com.grandstay.shared.domain.ModelEnums.BookingStatus; import jakarta.persistence.LockModeType; import org.springframework.data.domain.*; import org.springframework.data.jpa.repository.*; import org.springframework.data.repository.query.Param;
+import java.time.Instant; import java.util.*; import com.grandstay.booking.domain.Booking; import com.grandstay.shared.domain.ModelEnums.BookingSource; import com.grandstay.shared.domain.ModelEnums.BookingStatus; import jakarta.persistence.LockModeType; import org.springframework.data.domain.*; import org.springframework.data.jpa.repository.*; import org.springframework.data.repository.query.Param;
 public interface BookingRepository extends JpaRepository<Booking,UUID> {
  Optional<Booking> findByBookingNumber(String number);
  Page<Booking> findAllByStatus(BookingStatus status,Pageable pageable);
@@ -37,4 +37,7 @@ public interface BookingRepository extends JpaRepository<Booking,UUID> {
  List<Booking> findOverlapping(@Param("from") Instant from,@Param("to") Instant to,@Param("statuses") Collection<BookingStatus> statuses);
  @Lock(LockModeType.PESSIMISTIC_WRITE) @Query("select b from Booking b where b.id=:id")
  Optional<Booking> findByIdForUpdate(@Param("id") UUID id);
+ @Query("select b.id from Booking b where b.bookingSource=:source and b.status=:status and b.createdAt<=:cutoff order by b.createdAt")
+ List<UUID> findExpiredOnlineHoldIds(@Param("source") BookingSource source, @Param("status") BookingStatus status,
+                                     @Param("cutoff") Instant cutoff, Pageable pageable);
 }

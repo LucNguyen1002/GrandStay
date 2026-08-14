@@ -4,7 +4,7 @@ import { Eye, IdCard, Pencil, Plus, Search, ShieldCheck, Trash2, Upload } from '
 import { toast } from 'sonner'
 import { api, errorMessage } from '../api/client'
 import type { Customer, CustomerProfile, Page } from '../api/types'
-import { Badge, Button, Card, ConfirmDialog, Empty, Loading, Modal, PageHeader, Pagination } from '../components/ui'
+import { Badge, Button, Card, ConfirmDialog, Empty, ErrorState, Loading, Modal, PageHeader, Pagination } from '../components/ui'
 import { useAuth } from '../auth/AuthProvider'
 import { useI18n } from '../i18n'
 
@@ -23,6 +23,7 @@ export function CustomersPage() {
   const query = useQuery({ queryKey: ['customers', page, search], queryFn: () => api.get<Page<Customer>>('/customers', { params: { page, size: 20, search: search || undefined } }).then(r => r.data) })
   const remove = useMutation({ mutationFn: (id: string) => api.delete(`/customers/${id}`), onSuccess: () => { toast.success(text('Đã xóa hồ sơ khách hàng.', 'Guest profile removed.')); setDeleting(null); client.invalidateQueries({ queryKey: ['customers'] }) }, onError: e => toast.error(errorMessage(e)) })
   if (query.isLoading) return <Loading />
+  if (query.error) return <ErrorState message={errorMessage(query.error)} onRetry={() => void query.refetch()} />
   return <>
     <PageHeader title={text('Khách hàng', 'Guests')} description={text('Hồ sơ nhận diện, liên hệ và lịch sử phục vụ của khách.', 'Guest identity, contact details and service history.')} action={can('booking:write') ? <Button onClick={() => setEditing('new')}><Plus size={17}/>{text('Thêm khách hàng', 'Add guest')}</Button> : undefined}/>
     <Card><div className="relative mb-5 max-w-lg"><Search className="field-icon" size={18} aria-hidden="true"/><input className="field field-with-icon" aria-label={text('Tìm khách hàng', 'Search guests')} placeholder={text('Tìm theo tên, mã, email hoặc số điện thoại…', 'Search by name, code, email or phone…')} value={search} onChange={e => { setSearch(e.target.value); setPage(0) }}/></div>

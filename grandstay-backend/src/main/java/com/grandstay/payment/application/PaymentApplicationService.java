@@ -11,12 +11,16 @@ import java.util.UUID;
 import com.grandstay.billing.domain.Invoice;
 import com.grandstay.billing.infrastructure.InvoiceRepository;
 import com.grandstay.booking.domain.Booking;
+import com.grandstay.booking.domain.BookingRoom;
+import com.grandstay.booking.domain.PricingService;
 import com.grandstay.booking.infrastructure.BookingRepository;
+import com.grandstay.booking.infrastructure.BookingRoomRepository;
 import com.grandstay.payment.application.PaymentCommands.RecordPayment;
 import com.grandstay.payment.application.PaymentCommands.RefundPayment;
 import com.grandstay.payment.domain.Payment;
 import com.grandstay.payment.infrastructure.PaymentRepository;
 import com.grandstay.shared.domain.ModelEnums.InvoiceStatus;
+import com.grandstay.shared.domain.ModelEnums.BookingStatus;
 import com.grandstay.shared.domain.ModelEnums.PaymentPurpose;
 import com.grandstay.shared.domain.ModelEnums.PaymentMethod;
 import com.grandstay.shared.domain.ModelEnums.PaymentStatus;
@@ -30,16 +34,22 @@ import org.springframework.transaction.annotation.Transactional;
 public class PaymentApplicationService {
     private final PaymentRepository paymentRepository;
     private final BookingRepository bookingRepository;
+    private final BookingRoomRepository bookingRoomRepository;
     private final InvoiceRepository invoiceRepository;
+    private final PricingService pricingService;
     private final Clock clock;
 
     public PaymentApplicationService(PaymentRepository paymentRepository,
                                      BookingRepository bookingRepository,
+                                     BookingRoomRepository bookingRoomRepository,
                                      InvoiceRepository invoiceRepository,
+                                     PricingService pricingService,
                                      Clock clock) {
         this.paymentRepository = paymentRepository;
         this.bookingRepository = bookingRepository;
+        this.bookingRoomRepository = bookingRoomRepository;
         this.invoiceRepository = invoiceRepository;
+        this.pricingService = pricingService;
         this.clock = clock;
     }
 
@@ -90,8 +100,10 @@ public class PaymentApplicationService {
         if (paymentRepository.findByTransactionCode(command.transactionCode()).isPresent()) {
             throw BusinessException.conflict(ErrorCode.DATA_CONFLICT, "Transaction code already exists");
         }
-        if (maximumDeposit != null) {
-            requireWithinDepositLimit(booking.getId(), command.amount(), maximumDeposit);
+        if (command.purpose() == PaymentPurpose.DEPOSIT) {
+            requireDepositState(booking);
+            BigDecimal limit = maximumDeposit == null ? estimatedBookingTotal(booking) : maximumDeposit;
+            requireWithinDepositLimit(booking.getId(), command.amount(), limit);
         }
         if (command.purpose() != PaymentPurpose.DEPOSIT) {
             requireWithinBalance(booking.getId(), command.amount());
@@ -121,9 +133,11 @@ public class PaymentApplicationService {
             throw BusinessException.conflict(ErrorCode.INVALID_STATE_TRANSITION,
                     "Provider payments must be completed through a verified provider callback or reconciliation");
         }
-        bookingRepository.findByIdForUpdate(payment.getBookingId())
+        Booking booking = bookingRepository.findByIdForUpdate(payment.getBookingId())
                 .orElseThrow(() -> BusinessException.notFound("Booking", payment.getBookingId()));
-        if (payment.getPurpose() != PaymentPurpose.DEPOSIT) {
+        if (payment.getPurpose() == PaymentPurpose.DEPOSIT) {
+            requireDepositState(booking);
+        } else {
             requireWithinBalance(payment.getBookingId(), payment.getAmount());
         }
         payment.setStatus(PaymentStatus.COMPLETED); payment.setPaidAt(clock.instant());
@@ -149,9 +163,11 @@ public class PaymentApplicationService {
             throw BusinessException.conflict(ErrorCode.INVALID_STATE_TRANSITION,
                     "Provider payment cannot be completed from its current status");
         }
-        bookingRepository.findByIdForUpdate(payment.getBookingId())
+        Booking booking = bookingRepository.findByIdForUpdate(payment.getBookingId())
                 .orElseThrow(() -> BusinessException.notFound("Booking", payment.getBookingId()));
-        if (payment.getPurpose() != PaymentPurpose.DEPOSIT) {
+        if (payment.getPurpose() == PaymentPurpose.DEPOSIT) {
+            requireDepositState(booking);
+        } else {
             requireWithinBalance(payment.getBookingId(), payment.getAmount());
         }
         payment.setStatus(PaymentStatus.COMPLETED);
@@ -300,8 +316,25 @@ public class PaymentApplicationService {
                 .map(Payment::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
         if (committed.subtract(refunded).add(amount).compareTo(maximumDeposit) > 0) {
             throw BusinessException.conflict(ErrorCode.PAYMENT_EXCEEDS_BALANCE,
-                    "Customer deposit would exceed the required amount");
+                    "Customer deposit would exceed the allowed amount");
         }
+    }
+
+    private void requireDepositState(Booking booking) {
+        if (!List.of(BookingStatus.PENDING, BookingStatus.CONFIRMED, BookingStatus.CHECKED_IN)
+                .contains(booking.getStatus())) {
+            throw BusinessException.conflict(ErrorCode.INVALID_STATE_TRANSITION,
+                    "A deposit cannot be recorded for this booking status");
+        }
+    }
+
+    private BigDecimal estimatedBookingTotal(Booking booking) {
+        BigDecimal subtotal = pricingService.money(bookingRoomRepository.findAllByBookingId(booking.getId()).stream()
+                .map(BookingRoom::getRoomCharge).reduce(BigDecimal.ZERO, BigDecimal::add));
+        if (subtotal.signum() <= 0) throw BusinessException.invalid("Cannot calculate a deposit without rooms");
+        BigDecimal discount = pricingService.money(booking.getDiscountAmount().min(subtotal));
+        BigDecimal taxable = pricingService.money(subtotal.subtract(discount));
+        return pricingService.money(taxable.add(pricingService.percentage(taxable, booking.getTaxRate())));
     }
 
     private Payment locked(UUID id) {

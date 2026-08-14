@@ -5,7 +5,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { api, errorMessage } from '../api/client'
 import type { AmenityView, Booking, BookingView, Customer, HotelService, Page, Promotion, RatePlan, Room, RoomType } from '../api/types'
-import { Badge, Button, Card, ConfirmDialog, Empty, Loading, Modal, PageHeader, Pagination, statusTone } from '../components/ui'
+import { Badge, Button, Card, ConfirmDialog, Empty, ErrorState, Loading, Modal, PageHeader, Pagination, statusTone } from '../components/ui'
 import { useAuth } from '../auth/AuthProvider'
 import { CustomerDepositPanel } from '../components/CustomerDepositPanel'
 import { formatDateTime, formatMoney, useI18n, type Language } from '../i18n'
@@ -60,6 +60,7 @@ export function BookingsPage() {
     onError: e => toast.error(errorMessage(e)),
   })
   if (query.isLoading) return <Loading />
+  if (query.error) return <ErrorState message={errorMessage(query.error)} onRetry={() => void query.refetch()} />
   const data = query.data
   const belongsToGroup = (item: Booking) => historyGroup === 'ALL'
     || (historyGroup === 'UPCOMING' && ['PENDING', 'CONFIRMED'].includes(item.status))
@@ -114,10 +115,22 @@ function BookingDetailsModal({ bookingId, selfService, onClose }: { bookingId: s
   const [confirmingCancellation, setConfirmingCancellation] = useState(false)
   const [confirmingNoShow, setConfirmingNoShow] = useState(false)
   const [addingGuest, setAddingGuest] = useState(false)
+  const [customerId, setCustomerId] = useState('')
   const [newGuest, setNewGuest] = useState({ fullName: '', nationality: 'VN', dateOfBirth: '' })
   const details = useQuery({ queryKey: ['booking', selfService ? 'self' : 'staff', bookingId], queryFn: () => api.get<BookingView>(`${bookingBase}/${bookingId}`).then(response => response.data) })
   const view = details.data
   const summary = view?.booking
+  const customers = useQuery({
+    queryKey: ['customers', 'booking-link'],
+    enabled: !selfService && Boolean(summary) && !summary?.customerId && can('booking:write'),
+    queryFn: () => api.get<Page<Customer>>('/customers', { params: { size: 100, sort: 'fullName,asc' } })
+      .then(response => response.data.content),
+  })
+  const linkedCustomer = useQuery({
+    queryKey: ['customer', 'booking-check-in', summary?.customerId],
+    enabled: !selfService && Boolean(summary?.customerId) && summary?.status === 'CONFIRMED',
+    queryFn: () => api.get<Customer>(`/customers/${summary!.customerId}`).then(response => response.data),
+  })
   const services = useQuery({
     queryKey: ['services', 'usage'],
     enabled: summary?.status === 'CHECKED_IN' && can('service:write'),
@@ -157,6 +170,15 @@ function BookingDetailsModal({ bookingId, selfService, onClose }: { bookingId: s
     },
     onError: error => toast.error(errorMessage(error)),
   })
+  const linkCustomer = useMutation({
+    mutationFn: () => api.put(`/bookings/${bookingId}/customer`, { customerId }),
+    onSuccess: () => {
+      toast.success(text('Đã liên kết hồ sơ khách hàng.', 'Guest profile linked.'))
+      setCustomerId('')
+      refresh()
+    },
+    onError: error => toast.error(errorMessage(error)),
+  })
 
   return <>
   <Modal title={summary ? `${language === 'vi' ? 'Đặt phòng' : 'Booking'} ${summary.bookingNumber}` : (language === 'vi' ? 'Chi tiết đặt phòng' : 'Booking details')} size="xl" onClose={onClose}>
@@ -167,6 +189,23 @@ function BookingDetailsModal({ bookingId, selfService, onClose }: { bookingId: s
         <div><span className="text-ink-soft">{t('bookings.checkIn')}</span><p className="font-semibold">{dateTime(summary.expectedCheckInAt, language)}</p></div>
         <div><span className="text-ink-soft">{t('bookings.checkOut')}</span><p className="font-semibold">{dateTime(summary.expectedCheckOutAt, language)}</p></div>
       </div>
+      {!selfService && !summary.customerId && ['PENDING', 'CONFIRMED'].includes(summary.status) && <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+        <h3 className="font-bold text-amber-950">{text('Cần liên kết hồ sơ khách', 'Guest profile required')}</h3>
+        <p className="mt-1 text-xs leading-5 text-amber-800">{text('Booking vãng lai phải được liên kết với hồ sơ khách đã xác minh CCCD/hộ chiếu trước khi nhận phòng.', 'A walk-in booking must be linked to a guest with verified identity before check-in.')}</p>
+        {customers.error ? <div className="mt-3"><ErrorState message={errorMessage(customers.error)} onRetry={() => void customers.refetch()}/></div> : <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+          <select aria-label={text('Hồ sơ khách hàng', 'Guest profile')} className="field flex-1" value={customerId} onChange={event => setCustomerId(event.target.value)} disabled={customers.isLoading}>
+            <option value="">{customers.isLoading ? text('Đang tải khách hàng…', 'Loading guests…') : text('Chọn hồ sơ khách hàng', 'Select guest profile')}</option>
+            {customers.data?.filter(customer => customer.identityVerificationStatus === 'VERIFIED').map(customer => <option key={customer.id} value={customer.id}>{customer.customerCode} · {customer.fullName}</option>)}
+          </select>
+          <Button disabled={!customerId} loading={linkCustomer.isPending} onClick={() => linkCustomer.mutate()}>{text('Liên kết hồ sơ', 'Link profile')}</Button>
+          <Button variant="secondary" onClick={() => { onClose(); navigate('/customers') }}>{text('Xác minh khách', 'Verify a guest')}</Button>
+        </div>}
+      </div>}
+      {!selfService && summary.customerId && summary.status === 'CONFIRMED' && linkedCustomer.isSuccess && linkedCustomer.data.identityVerificationStatus !== 'VERIFIED' && <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+        <h3 className="font-bold text-amber-950">{text('Danh tính chưa được xác minh', 'Identity is not verified')}</h3>
+        <p className="mt-1 text-xs leading-5 text-amber-800">{text('Hãy duyệt CCCD/hộ chiếu của khách trong trang Khách hàng trước khi nhận phòng.', 'Verify the guest document on the Guests page before check-in.')}</p>
+        <Button className="mt-3" variant="secondary" onClick={() => { onClose(); navigate('/customers') }}>{text('Mở trang Khách hàng', 'Open Guests')}</Button>
+      </div>}
       <div className="grid gap-5 md:grid-cols-2">
         <div><div className="mb-2 flex items-center justify-between gap-2"><h3 className="font-bold">{language === 'vi' ? 'Khách lưu trú' : 'Guests'}</h3>{['PENDING', 'CONFIRMED', 'CHECKED_IN'].includes(summary.status) && view.guests.length < summary.adults + summary.children && <Button variant="secondary" onClick={() => setAddingGuest(true)}><UserPlus size={15}/>{text('Thêm khách', 'Add guest')}</Button>}</div>{view.guests.map(guest => <div key={guest.id} className="border-t border-slate-100 py-2 text-sm">{guest.fullName} {guest.primary && <span className="text-gold">· {language === 'vi' ? 'Khách chính' : 'Primary guest'}</span>}</div>)}<small className="mt-2 block text-ink-soft">{text(`Đã khai báo ${view.guests.length}/${summary.adults + summary.children} khách.`, `${view.guests.length}/${summary.adults + summary.children} guests declared.`)}</small></div>
         <div><h3 className="mb-2 font-bold">{text('Phòng đã chọn', 'Selected rooms')}</h3>{view.rooms.map(room => {
@@ -285,6 +324,7 @@ function CreateBookingModal({ initialRoomId, initialRoomTypeId, initialCheckIn, 
   }
   const adults = roomDrafts.reduce((total, room) => total + room.adults, 0)
   const children = roomDrafts.reduce((total, room) => total + room.children, 0)
+  const maxAdditionalGuests = Math.max(0, adults + children - 1)
   const roomsValid = roomDrafts.length > 0 && roomDrafts.every(room => {
     const capacity = capacityForRoom(room.roomId)
     return room.roomId && room.ratePlanId && capacity
@@ -292,7 +332,9 @@ function CreateBookingModal({ initialRoomId, initialRoomTypeId, initialCheckIn, 
       && room.children >= 0 && room.children <= capacity.capacityChildren
       && availableIds.has(room.roomId)
   })
-  const guestsValid = Boolean(selfService || selectedCustomer || form.guestName.trim()) && guestDrafts.every(guest => guest.fullName.trim())
+  const guestsValid = Boolean(selfService || selectedCustomer || form.guestName.trim())
+    && guestDrafts.length <= maxAdditionalGuests
+    && guestDrafts.every(guest => guest.fullName.trim())
   const valid = validPeriod && roomsValid && guestsValid
 
   const mutation = useMutation({
@@ -329,9 +371,19 @@ function CreateBookingModal({ initialRoomId, initialRoomTypeId, initialCheckIn, 
     if (empty) updateRoom(empty.key, next)
     else setRoomDrafts(previous => [...previous, { key: draftKey(), ...next }])
   }
+  const dependencyError = customers.error || roomCatalog.error || roomTypes.error || rates.error || amenities.error
 
   return <Modal title={text('Tạo đặt phòng', 'Create booking')} size="xl" onClose={onClose}>
     <div className="space-y-6">
+      {dependencyError && (
+        <ErrorState message={errorMessage(dependencyError)} onRetry={() => {
+          void customers.refetch()
+          void roomCatalog.refetch()
+          void roomTypes.refetch()
+          void rates.refetch()
+          void amenities.refetch()
+        }}/>
+      )}
       <section>
         <h3 className="mb-3 font-bold">{text('1. Khách chính và thời gian lưu trú', '1. Primary guest and stay dates')}</h3>
         <div className="grid gap-4 sm:grid-cols-2">
@@ -415,7 +467,7 @@ function CreateBookingModal({ initialRoomId, initialRoomTypeId, initialCheckIn, 
       </section>
 
       <section className="border-t border-slate-100 pt-5">
-        <div className="mb-3 flex items-center justify-between gap-3"><div><h3 className="font-bold">{text('3. Danh sách khách đi cùng', '3. Additional guests')}</h3><p className="text-xs text-ink-soft">{text('Không bắt buộc; có thể bổ sung sau khi khách đến.', 'Optional; guests can be added after arrival.')}</p></div><Button variant="secondary" onClick={() => setGuestDrafts(previous => [...previous, { key: draftKey(), fullName: '', nationality: 'VN', dateOfBirth: '' }])}><UserPlus size={15}/>{text('Thêm khách', 'Add guest')}</Button></div>
+        <div className="mb-3 flex items-center justify-between gap-3"><div><h3 className="font-bold">{text('3. Danh sách khách đi cùng', '3. Additional guests')}</h3><p className="text-xs text-ink-soft">{text(`Không bắt buộc; tối đa ${maxAdditionalGuests} khách đi cùng theo số người đã phân phòng.`, `Optional; up to ${maxAdditionalGuests} additional guests based on the room allocation.`)}</p></div><Button variant="secondary" disabled={guestDrafts.length >= maxAdditionalGuests} onClick={() => setGuestDrafts(previous => [...previous, { key: draftKey(), fullName: '', nationality: 'VN', dateOfBirth: '' }])}><UserPlus size={15}/>{text('Thêm khách', 'Add guest')}</Button></div>
         <div className="space-y-3">{guestDrafts.map((guest, index) => <div key={guest.key} className="grid gap-3 rounded-2xl border border-slate-200 p-4 sm:grid-cols-[1fr_.35fr_.55fr_auto]"><label><span className="label">{text(`Họ tên khách ${index + 2}`, `Guest ${index + 2} name`)}</span><input className="field" value={guest.fullName} onChange={event => updateGuest(guest.key, { fullName: event.target.value })}/></label><label><span className="label">{text('Quốc tịch', 'Nationality')}</span><input className="field uppercase" maxLength={2} value={guest.nationality} onChange={event => updateGuest(guest.key, { nationality: event.target.value.toUpperCase() })}/></label><label><span className="label">{text('Ngày sinh', 'Date of birth')}</span><input type="date" className="field" value={guest.dateOfBirth} onChange={event => updateGuest(guest.key, { dateOfBirth: event.target.value })}/></label><button type="button" aria-label={text(`Xóa khách ${index + 2}`, `Remove guest ${index + 2}`)} className="self-end rounded-xl p-3 text-red-600 hover:bg-red-50" onClick={() => setGuestDrafts(previous => previous.filter(item => item.key !== guest.key))}><Trash2 size={17}/></button></div>)}</div>
       </section>
 

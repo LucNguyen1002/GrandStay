@@ -89,6 +89,10 @@ logging:
       console: ${LOG_FORMAT:logstash}
 
 grandstay:
+  booking:
+    hold-enabled: ${BOOKING_HOLD_ENABLED:true}
+    hold-duration: ${BOOKING_HOLD_DURATION:15m}
+    hold-scan-delay: ${BOOKING_HOLD_SCAN_DELAY:60000}
   catalog:
     bootstrap:
       enabled: ${CATALOG_BOOTSTRAP_ENABLED:false}

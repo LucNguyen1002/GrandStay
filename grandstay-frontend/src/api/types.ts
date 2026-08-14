@@ -137,6 +137,7 @@ export type Customer = {
   nationality?: string
   dateOfBirth?: string
   gender?: string
+  identityVerificationStatus: 'UNVERIFIED' | 'PENDING' | 'VERIFIED' | 'REJECTED'
   version: number
 }
 

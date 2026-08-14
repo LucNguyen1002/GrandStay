@@ -9,7 +9,9 @@ import com.grandstay.shared.domain.ModelEnums.*;
 public final class EntityDtos {
  private EntityDtos() {}
  public record UserDto(UUID id,String username,String email,String fullName,String phone,UserStatus status,long version) {}
- public record CustomerDto(UUID id,String customerCode,String fullName,String email,String phone,String nationality,LocalDate dateOfBirth,Gender gender,long version) {}
+ public record CustomerDto(UUID id,String customerCode,String fullName,String email,String phone,String nationality,
+                           LocalDate dateOfBirth,Gender gender,IdentityVerificationStatus identityVerificationStatus,
+                           long version) {}
  public record FloorDto(UUID id,String code,String name,int floorNumber,String description,long version) {}
  public record AmenityDto(UUID id,String code,String name,String description,String icon,long version) {}
  public record RoomTypeDto(UUID id,String code,String name,String description,int capacityAdults,int capacityChildren,BigDecimal baseHourlyRate,BigDecimal baseDailyRate,BigDecimal baseNightlyRate,String currency,long version) {}

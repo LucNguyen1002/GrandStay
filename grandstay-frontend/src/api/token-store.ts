@@ -6,7 +6,11 @@ let current: TokenPair | null = null
 export function readSession(): TokenPair | null {
   if (current) return current
   try {
-    const raw = localStorage.getItem(STORAGE_KEY)
+    // Keep authentication scoped to the current browser tab/session. This
+    // avoids leaving refresh tokens in persistent localStorage after the
+    // browser has been closed.
+    localStorage.removeItem(STORAGE_KEY)
+    const raw = sessionStorage.getItem(STORAGE_KEY)
     current = raw ? JSON.parse(raw) as TokenPair : null
   } catch {
     current = null
@@ -16,13 +20,15 @@ export function readSession(): TokenPair | null {
 
 export function saveSession(tokens: TokenPair) {
   current = tokens
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(tokens))
+  localStorage.removeItem(STORAGE_KEY)
+  sessionStorage.setItem(STORAGE_KEY, JSON.stringify(tokens))
   window.dispatchEvent(new Event('grandstay:auth'))
 }
 
 export function clearSession() {
   current = null
   localStorage.removeItem(STORAGE_KEY)
+  sessionStorage.removeItem(STORAGE_KEY)
   window.dispatchEvent(new Event('grandstay:auth'))
 }
 

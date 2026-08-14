@@ -8,6 +8,7 @@ import java.util.UUID;
 import com.grandstay.booking.application.BookingCommands.CreateBooking;
 import com.grandstay.booking.application.BookingCommands.GuestInput;
 import com.grandstay.booking.application.BookingCommands.RoomSelection;
+import com.grandstay.booking.infrastructure.BookingRepository;
 import com.grandstay.customer.domain.Customer;
 import com.grandstay.customer.infrastructure.CustomerRepository;
 import com.grandstay.dashboard.application.DashboardApplicationService;
@@ -28,6 +29,8 @@ import com.grandstay.payment.application.PaymentCommands.RecordPayment;
 import com.grandstay.payment.application.PaymentCommands.RefundPayment;
 import com.grandstay.shared.domain.ModelEnums.BookingSource;
 import com.grandstay.shared.domain.ModelEnums.BookingStatus;
+import com.grandstay.shared.domain.ModelEnums.IdentityVerificationStatus;
+import com.grandstay.shared.domain.ModelEnums.InvoiceStatus;
 import com.grandstay.shared.domain.ModelEnums.PricingUnit;
 import com.grandstay.shared.domain.ModelEnums.RoomOperationalStatus;
 import com.grandstay.shared.domain.ModelEnums.PaymentMethod;
@@ -39,6 +42,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
@@ -56,7 +60,9 @@ class BookingApplicationServiceIntegrationTest {
     static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:17-alpine");
 
     @Autowired BookingApplicationService bookingService;
+    @Autowired BookingHoldExpirationService holdExpirationService;
     @Autowired BookingQueryService bookingQueryService;
+    @Autowired BookingRepository bookingRepository;
     @Autowired FloorRepository floorRepository;
     @Autowired RoomTypeRepository roomTypeRepository;
     @Autowired RoomRepository roomRepository;
@@ -68,10 +74,12 @@ class BookingApplicationServiceIntegrationTest {
     @Autowired RoomCatalogApplicationService roomCatalogService;
     @Autowired CustomerRepository customerRepository;
     @Autowired DashboardApplicationService dashboardService;
+    @Autowired JdbcTemplate jdbcTemplate;
 
     private Room room;
     private RatePlan ratePlan;
     private HotelService hotelService;
+    private Customer verifiedCustomer;
 
     @BeforeEach
     void setUpCatalog() {
@@ -96,6 +104,15 @@ class BookingApplicationServiceIntegrationTest {
         ratePlan.setRate(new BigDecimal("1000000")); ratePlan.setCurrency("VND");
         ratePlan.setMinStayUnits(1); ratePlan.setRefundable(true); ratePlan.setActive(true);
         ratePlan = ratePlanRepository.save(ratePlan);
+
+        verifiedCustomer = new Customer();
+        verifiedCustomer.setCustomerCode("IT-CUS-" + suffix);
+        verifiedCustomer.setFullName("Verified Integration Guest " + suffix);
+        verifiedCustomer.setEmail("verified-" + suffix + "@grandstay.test");
+        verifiedCustomer.setNationality("VN");
+        verifiedCustomer.setIdentityVerificationStatus(IdentityVerificationStatus.VERIFIED);
+        verifiedCustomer.setIdentityVerifiedAt(Instant.now());
+        verifiedCustomer = customerRepository.save(verifiedCustomer);
 
         hotelService = new HotelService(); hotelService.setCode("IT-SVC-" + suffix);
         hotelService.setName("Integration breakfast"); hotelService.setCategory("FOOD");
@@ -147,6 +164,25 @@ class BookingApplicationServiceIntegrationTest {
     }
 
     @Test
+    void expiresAnUnpaidOnlineBookingAndReleasesItsRoom() {
+        Instant checkIn = Instant.parse("2036-01-01T07:00:00Z");
+        Instant checkOut = Instant.parse("2036-01-02T07:00:00Z");
+        CreateBooking direct = command(checkIn, checkOut);
+        var booking = bookingService.create(new CreateBooking(direct.customerId(), null,
+                BookingSource.ONLINE, checkIn, checkOut, direct.adults(), direct.children(), null,
+                "VND", true, direct.rooms(), direct.guests()));
+        jdbcTemplate.update("update bookings set created_at = now() - interval '30 minutes' where id = ?",
+                booking.id());
+
+        holdExpirationService.expireUnpaidOnlineBookings();
+
+        assertThat(bookingRepository.findById(booking.id()).orElseThrow().getStatus())
+                .isEqualTo(BookingStatus.CANCELLED);
+        assertThat(roomCatalogService.availableRooms(checkIn, checkOut))
+                .extracting(dto -> dto.id()).contains(room.getId());
+    }
+
+    @Test
     void preventsOverlapButAllowsAdjacentStay() {
         assertThat(roomCatalogService.availableRooms(Instant.parse("2030-01-01T07:00:00Z"),
                 Instant.parse("2030-01-03T07:00:00Z"))).extracting(dto -> dto.id()).contains(room.getId());
@@ -187,6 +223,58 @@ class BookingApplicationServiceIntegrationTest {
                 new GuestInput(null, "Extra Guest", false, "VN", null)))
                 .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("maximum");
+    }
+
+    @Test
+    void rejectsADeclaredGuestListThatExceedsTheBookingCount() {
+        CreateBooking invalid = new CreateBooking(verifiedCustomer.getId(), null, BookingSource.DIRECT,
+                Instant.parse("2035-01-01T07:00:00Z"), Instant.parse("2035-01-02T07:00:00Z"),
+                1, 0, null, "VND", true,
+                List.of(new RoomSelection(room.getId(), ratePlan.getId(), 1, 0)),
+                List.of(
+                        new GuestInput(verifiedCustomer.getId(), verifiedCustomer.getFullName(), true, "VN", null),
+                        new GuestInput(null, "Undeclared companion", false, "VN", null)));
+
+        assertThatThrownBy(() -> bookingService.create(invalid))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("exceeds the booking guest count");
+    }
+
+    @Test
+    void keepsTheRatePlanExplicitlySelectedByTheGuest() {
+        RatePlan cheaperAlternative = new RatePlan();
+        cheaperAlternative.setRoomTypeId(room.getRoomTypeId());
+        cheaperAlternative.setCode("IT-CHEAP-" + UUID.randomUUID().toString().substring(0, 8));
+        cheaperAlternative.setName("Cheaper alternative");
+        cheaperAlternative.setPricingUnit(PricingUnit.NIGHTLY);
+        cheaperAlternative.setRate(new BigDecimal("100000"));
+        cheaperAlternative.setCurrency("VND");
+        cheaperAlternative.setMinStayUnits(1);
+        cheaperAlternative.setRefundable(true);
+        cheaperAlternative.setActive(true);
+        ratePlanRepository.save(cheaperAlternative);
+
+        var booking = bookingService.create(command(Instant.parse("2035-02-01T07:00:00Z"),
+                Instant.parse("2035-02-02T07:00:00Z")));
+
+        assertThat(booking.rooms()).singleElement().satisfies(allocation -> {
+            assertThat(allocation.unitRate()).isEqualByComparingTo("1000000.00");
+            assertThat(allocation.roomCharge()).isEqualByComparingTo("1000000.00");
+        });
+    }
+
+    @Test
+    void requiresAVerifiedCustomerProfileBeforeCheckIn() {
+        Instant actualCheckIn = Instant.now().minusSeconds(1);
+        CreateBooking base = command(actualCheckIn.plusSeconds(3600), actualCheckIn.plusSeconds(25 * 3600));
+        var booking = bookingService.create(new CreateBooking(null, null, BookingSource.DIRECT,
+                base.expectedCheckInAt(), base.expectedCheckOutAt(), base.adults(), base.children(),
+                base.specialRequests(), base.currency(), base.confirmImmediately(), base.rooms(),
+                List.of(new GuestInput(null, "Walk-in guest", true, "VN", null))));
+
+        assertThatThrownBy(() -> lifecycleService.checkIn(booking.id(), actualCheckIn))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("verified customer profile");
     }
 
     @Test
@@ -258,7 +346,34 @@ class BookingApplicationServiceIntegrationTest {
                 "ONLINE_PROVIDER", "ORDER-TWO-" + booking.id(), "REQUEST-TWO-" + booking.id(),
                 new BigDecimal("300000")))
                 .isInstanceOf(BusinessException.class)
-                .hasMessageContaining("exceed the required amount");
+                .hasMessageContaining("allowed amount");
+    }
+
+    @Test
+    void preventsManualDepositsFromExceedingTheEstimatedStayTotal() {
+        var booking = bookingService.create(command(Instant.parse("2031-02-01T07:00:00Z"),
+                Instant.parse("2031-02-02T07:00:00Z")));
+
+        assertThatThrownBy(() -> paymentService.record(new RecordPayment(booking.id(),
+                "MANUAL-OVERPAY-" + booking.id(), PaymentPurpose.DEPOSIT, PaymentMethod.CASH,
+                new BigDecimal("1000000.01"), "VND", true, null, "Invalid overpayment")))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("allowed amount");
+    }
+
+    @Test
+    void issuesAPaidInvoiceWhenTheStayWasFullyPrepaid() {
+        Instant checkOut = Instant.now().minusSeconds(5);
+        Instant checkIn = checkOut.minusSeconds(24 * 3600);
+        var booking = bookingService.create(command(checkIn, checkOut));
+        paymentService.record(new RecordPayment(booking.id(), "PREPAID-" + booking.id(),
+                PaymentPurpose.DEPOSIT, PaymentMethod.CARD, new BigDecimal("1000000"),
+                "VND", true, null, "Full prepayment"));
+
+        lifecycleService.checkIn(booking.id(), checkIn);
+        var checkedOut = lifecycleService.checkOut(booking.id(), checkOut);
+
+        assertThat(checkedOut.invoice().status()).isEqualTo(InvoiceStatus.PAID);
     }
 
     @Test
@@ -310,9 +425,9 @@ class BookingApplicationServiceIntegrationTest {
     }
 
     private CreateBooking command(Instant checkIn, Instant checkOut, String guestName) {
-        return new CreateBooking(null, null, BookingSource.DIRECT, checkIn, checkOut,
+        return new CreateBooking(verifiedCustomer.getId(), null, BookingSource.DIRECT, checkIn, checkOut,
                 1, 0, null, "VND", true,
                 List.of(new RoomSelection(room.getId(), ratePlan.getId(), 1, 0)),
-                List.of(new GuestInput(null, guestName, true, "VN", null)));
+                List.of(new GuestInput(verifiedCustomer.getId(), guestName, true, "VN", null)));
     }
 }

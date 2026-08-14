@@ -9,6 +9,8 @@ describe('token store', () => {
     const pair = { tokenType: 'Bearer', accessToken: 'a.b.c', accessTokenExpiresAt: '2026-01-01', refreshToken: 'refresh', refreshTokenExpiresAt: '2026-02-01' }
     saveSession(pair)
     expect(readSession()).toEqual(pair)
+    expect(sessionStorage.getItem('grandstay.session')).toContain('refresh')
+    expect(localStorage.getItem('grandstay.session')).toBeNull()
     clearSession()
     expect(readSession()).toBeNull()
   })

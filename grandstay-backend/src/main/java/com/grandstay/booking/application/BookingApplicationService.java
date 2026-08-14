@@ -26,6 +26,7 @@ import com.grandstay.booking.infrastructure.BookingGuestRepository;
 import com.grandstay.booking.infrastructure.BookingRepository;
 import com.grandstay.booking.infrastructure.BookingRoomRepository;
 import com.grandstay.booking.infrastructure.PromotionRepository;
+import com.grandstay.customer.infrastructure.CustomerRepository;
 import com.grandstay.room.domain.RatePlan;
 import com.grandstay.room.domain.Room;
 import com.grandstay.room.domain.RoomType;
@@ -51,6 +52,7 @@ public class BookingApplicationService {
     private final RatePlanRepository ratePlanRepository;
     private final RoomTypeRepository roomTypeRepository;
     private final PromotionRepository promotionRepository;
+    private final CustomerRepository customerRepository;
     private final PricingService pricingService;
     private final BookingStatusPolicy statusPolicy;
     private final Clock clock;
@@ -63,6 +65,7 @@ public class BookingApplicationService {
                                      RatePlanRepository ratePlanRepository,
                                      RoomTypeRepository roomTypeRepository,
                                      PromotionRepository promotionRepository,
+                                     CustomerRepository customerRepository,
                                      PricingService pricingService,
                                      BookingStatusPolicy statusPolicy,
                                      Clock clock,
@@ -74,6 +77,7 @@ public class BookingApplicationService {
         this.ratePlanRepository = ratePlanRepository;
         this.roomTypeRepository = roomTypeRepository;
         this.promotionRepository = promotionRepository;
+        this.customerRepository = customerRepository;
         this.pricingService = pricingService;
         this.statusPolicy = statusPolicy;
         this.clock = clock;
@@ -107,7 +111,7 @@ public class BookingApplicationService {
                 throw BusinessException.conflict(ErrorCode.ROOM_NOT_AVAILABLE,
                         "Room " + room.getRoomNumber() + " is not available for the selected period");
             }
-            PricedPlan pricedPlan = bestAvailablePlan(room, command, currency, requestedPlan);
+            PricedPlan pricedPlan = new PricedPlan(requestedPlan, priceWithMinimumStay(requestedPlan, command));
             RatePlan ratePlan = pricedPlan.plan();
             PricingService.Price price = pricedPlan.price();
             if (price.quantity().compareTo(BigDecimal.valueOf(ratePlan.getMinStayUnits())) < 0) {
@@ -172,9 +176,18 @@ public class BookingApplicationService {
         if (reason == null || reason.isBlank()) throw BusinessException.invalid("Cancellation reason is required");
         Booking booking = lockedBooking(bookingId);
         statusPolicy.requireTransition(booking.getStatus(), BookingStatus.CANCELLED);
+        releasePromotion(booking);
         booking.setCancellationReason(reason.trim());
         booking.setStatus(BookingStatus.CANCELLED);
         bookingRepository.saveAndFlush(booking);
+    }
+
+    private void releasePromotion(Booking booking) {
+        if (booking.getPromotionId() == null) return;
+        promotionRepository.findByIdForUpdate(booking.getPromotionId()).ifPresent(promotion -> {
+            promotion.setUsedCount(Math.max(0, promotion.getUsedCount() - 1));
+            promotionRepository.save(promotion);
+        });
     }
 
     @Transactional
@@ -220,6 +233,30 @@ public class BookingApplicationService {
         bookingGuestRepository.save(guest);
     }
 
+    @Transactional
+    public void assignCustomer(UUID bookingId, UUID customerId) {
+        if (customerId == null) throw BusinessException.invalid("Customer is required");
+        Booking booking = lockedBooking(bookingId);
+        if (!Set.of(BookingStatus.PENDING, BookingStatus.CONFIRMED).contains(booking.getStatus())) {
+            throw BusinessException.conflict(ErrorCode.INVALID_STATE_TRANSITION,
+                    "A customer profile can only be linked before check-in");
+        }
+        var customer = customerRepository.findById(customerId)
+                .filter(candidate -> candidate.getDeletedAt() == null)
+                .orElseThrow(() -> BusinessException.notFound("Customer", customerId));
+        BookingGuest primary = bookingGuestRepository.findAllByBookingIdOrderByPrimaryDesc(bookingId).stream()
+                .filter(BookingGuest::isPrimary)
+                .findFirst()
+                .orElseThrow(() -> BusinessException.invalid("Primary guest is required"));
+        booking.setCustomerId(customer.getId());
+        primary.setCustomerId(customer.getId());
+        primary.setFullName(customer.getFullName());
+        primary.setNationality(customer.getNationality());
+        primary.setDateOfBirth(customer.getDateOfBirth());
+        bookingRepository.save(booking);
+        bookingGuestRepository.save(primary);
+    }
+
     Booking lockedBooking(UUID id) {
         return bookingRepository.findByIdForUpdate(id)
                 .orElseThrow(() -> BusinessException.notFound("Booking", id));
@@ -254,6 +291,10 @@ public class BookingApplicationService {
         if (command.guests().stream().anyMatch(g -> g.fullName() == null || g.fullName().isBlank())) {
             throw BusinessException.invalid("Every guest must have a full name");
         }
+        if (command.guests().size() > command.adults() + command.children()) {
+            throw new BusinessException(ErrorCode.GUEST_CAPACITY_EXCEEDED, HttpStatus.UNPROCESSABLE_ENTITY,
+                    "Declared guest list exceeds the booking guest count");
+        }
     }
 
     private Map<UUID, Room> loadRooms(List<RoomSelection> selections) {
@@ -283,27 +324,11 @@ public class BookingApplicationService {
         }
     }
 
-    private PricedPlan bestAvailablePlan(Room room, CreateBooking command, String currency, RatePlan requested) {
-        return ratePlanRepository.findAllByRoomTypeIdAndActiveTrueAndDeletedAtIsNull(room.getRoomTypeId()).stream()
-                .filter(plan -> availableFor(plan, room, command, currency))
-                .map(plan -> new PricedPlan(plan, priceWithMinimumStay(plan, command)))
-                .min(java.util.Comparator.comparing(item -> item.price().amount()))
-                .orElseGet(() -> new PricedPlan(requested, priceWithMinimumStay(requested, command)));
-    }
-
     private PricingService.Price priceWithMinimumStay(RatePlan plan, CreateBooking command) {
         PricingService.Price calculated = pricingService.calculateRoomCharge(command.expectedCheckInAt(),
                 command.expectedCheckOutAt(), plan.getPricingUnit(), plan.getRate());
         BigDecimal quantity = calculated.quantity().max(BigDecimal.valueOf(plan.getMinStayUnits()));
         return new PricingService.Price(quantity, pricingService.money(plan.getRate().multiply(quantity)));
-    }
-
-    private boolean availableFor(RatePlan plan, Room room, CreateBooking command, String currency) {
-        LocalDate date = command.expectedCheckInAt().atZone(PricingService.HOTEL_ZONE).toLocalDate();
-        return plan.getDeletedAt() == null && plan.isActive() && plan.getRoomTypeId().equals(room.getRoomTypeId())
-                && plan.getCurrency().equalsIgnoreCase(currency)
-                && (plan.getValidFrom() == null || !date.isBefore(plan.getValidFrom()))
-                && (plan.getValidTo() == null || !date.isAfter(plan.getValidTo()));
     }
 
     private BigDecimal applyPromotion(UUID promotionId, BigDecimal subtotal) {

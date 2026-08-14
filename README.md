@@ -15,6 +15,8 @@ Yêu cầu: Docker Desktop hoặc Docker Engine có Compose v2.
 
 Catalog bootstrap chỉ chạy khi cả tầng, hạng phòng, phòng và gói giá đều đang trống; nếu đã có bất kỳ dữ liệu danh mục nào, hệ thống sẽ bỏ qua để không trộn dữ liệu giả định vào dữ liệu nghiệp vụ. Có thể đặt `CATALOG_BOOTSTRAP_ENABLED=false` để tắt hoàn toàn.
 
+Đặt phòng online đã xác nhận nhưng chưa thanh toán đủ cọc sẽ được giữ trong 15 phút rồi tự hủy để giải phóng phòng. Có thể đổi thời gian bằng `BOOKING_HOLD_DURATION` (ví dụ `20m`) hoặc tắt tác vụ bằng `BOOKING_HOLD_ENABLED=false`.
+
 Các địa chỉ mặc định:
 
 - Web: `http://localhost:3000`

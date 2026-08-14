@@ -1,6 +1,6 @@
 import type { InternalAxiosRequestConfig } from 'axios'
 import { afterEach, describe, expect, it } from 'vitest'
-import { api } from './client'
+import { api, errorMessage } from './client'
 import { clearSession, saveSession } from './token-store'
 
 const session = {
@@ -17,7 +17,10 @@ const captureAdapter = (captured: InternalAxiosRequestConfig[]) =>
     return { data: {}, status: 200, statusText: 'OK', headers: {}, config }
   }
 
-afterEach(() => clearSession())
+afterEach(() => {
+  clearSession()
+  window.localStorage.removeItem('grandstay:language')
+})
 
 describe('API authorization header', () => {
   it.each(['/auth/register', '/auth/login', '/auth/google', '/auth/refresh', '/auth/logout'])('does not attach a stale token to %s', async url => {
@@ -36,5 +39,39 @@ describe('API authorization header', () => {
     await api.get('/bookings', { adapter: captureAdapter(captured) })
 
     expect(captured[0].headers.get('Authorization')).toBe(`Bearer ${session.accessToken}`)
+  })
+})
+
+describe('localized API errors', () => {
+  it('shows the missing verified-profile check-in error in Vietnamese', () => {
+    window.localStorage.setItem('grandstay:language', 'vi')
+    const error = {
+      isAxiosError: true,
+      response: {
+        status: 422,
+        data: {
+          code: 'IDENTITY_REQUIRED',
+          detail: 'A verified customer profile is required before check-in',
+        },
+      },
+    }
+
+    expect(errorMessage(error)).toContain('hồ sơ khách hàng đã xác minh')
+  })
+
+  it('keeps the same check-in error understandable in English', () => {
+    window.localStorage.setItem('grandstay:language', 'en')
+    const error = {
+      isAxiosError: true,
+      response: {
+        status: 422,
+        data: {
+          code: 'IDENTITY_REQUIRED',
+          detail: 'A verified customer profile is required before check-in',
+        },
+      },
+    }
+
+    expect(errorMessage(error)).toBe('A verified customer profile is required before check-in.')
   })
 })

@@ -20,10 +20,14 @@ import com.grandstay.booking.domain.PricingService;
 import com.grandstay.booking.infrastructure.BookingGuestRepository;
 import com.grandstay.booking.infrastructure.BookingRepository;
 import com.grandstay.booking.infrastructure.BookingRoomRepository;
+import com.grandstay.payment.domain.Payment;
+import com.grandstay.payment.infrastructure.PaymentRepository;
 import com.grandstay.service.domain.BookingService;
 import com.grandstay.service.infrastructure.BookingServiceRepository;
 import com.grandstay.shared.domain.ModelEnums.InvoiceItemType;
 import com.grandstay.shared.domain.ModelEnums.InvoiceStatus;
+import com.grandstay.shared.domain.ModelEnums.PaymentStatus;
+import com.grandstay.shared.domain.ModelEnums.PaymentType;
 import com.grandstay.shared.exception.BusinessException;
 import jakarta.persistence.EntityManager;
 import org.springframework.stereotype.Service;
@@ -37,6 +41,7 @@ public class BillingApplicationService {
     private final BookingServiceRepository bookingServiceRepository;
     private final InvoiceRepository invoiceRepository;
     private final InvoiceItemRepository itemRepository;
+    private final PaymentRepository paymentRepository;
     private final EarlyLateFeePolicy feePolicy;
     private final PricingService pricingService;
     private final Clock clock;
@@ -48,6 +53,7 @@ public class BillingApplicationService {
                                      BookingServiceRepository bookingServiceRepository,
                                      InvoiceRepository invoiceRepository,
                                      InvoiceItemRepository itemRepository,
+                                     PaymentRepository paymentRepository,
                                      EarlyLateFeePolicy feePolicy,
                                      PricingService pricingService,
                                      Clock clock,
@@ -58,6 +64,7 @@ public class BillingApplicationService {
         this.bookingServiceRepository = bookingServiceRepository;
         this.invoiceRepository = invoiceRepository;
         this.itemRepository = itemRepository;
+        this.paymentRepository = paymentRepository;
         this.feePolicy = feePolicy;
         this.pricingService = pricingService;
         this.clock = clock;
@@ -110,7 +117,8 @@ public class BillingApplicationService {
                 .orElseThrow(() -> BusinessException.invalid("Primary guest is required for invoice"));
 
         Invoice invoice = new Invoice();
-        invoice.setBookingId(bookingId); invoice.setStatus(InvoiceStatus.ISSUED);
+        invoice.setBookingId(bookingId);
+        invoice.setStatus(netPaid(bookingId).compareTo(grandTotal) >= 0 ? InvoiceStatus.PAID : InvoiceStatus.ISSUED);
         invoice.setIssuedAt(clock.instant()); invoice.setDueAt(clock.instant().plus(Duration.ofDays(1)));
         invoice.setCustomerName(primaryGuest.getFullName()); invoice.setCurrency(booking.getCurrency());
         invoice.setRoomCharge(roomCharge); invoice.setServiceCharge(serviceCharge); invoice.setExtraFee(extraFee);
@@ -162,6 +170,20 @@ public class BillingApplicationService {
     }
 
     private BigDecimal money(BigDecimal value) { return pricingService.money(value); }
+
+    private BigDecimal netPaid(UUID bookingId) {
+        List<Payment> payments = paymentRepository.findAllByBookingId(bookingId);
+        BigDecimal paid = payments.stream()
+                .filter(payment -> payment.getPaymentType() == PaymentType.PAYMENT)
+                .filter(payment -> List.of(PaymentStatus.COMPLETED, PaymentStatus.PARTIALLY_REFUNDED,
+                        PaymentStatus.REFUNDED).contains(payment.getStatus()))
+                .map(Payment::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal refunded = payments.stream()
+                .filter(payment -> payment.getPaymentType() == PaymentType.REFUND)
+                .filter(payment -> payment.getStatus() == PaymentStatus.COMPLETED)
+                .map(Payment::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+        return money(paid.subtract(refunded));
+    }
 
     private record LineDraft(InvoiceItemType type, UUID referenceId, String description, String unit,
                              BigDecimal quantity, BigDecimal unitPrice, BigDecimal base, BigDecimal taxRate) {}

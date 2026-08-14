@@ -23,8 +23,8 @@ public class CustomerApplicationService {
         this.repository = repository; this.mapper = mapper; this.clock = clock;
     }
     @Transactional(readOnly=true) public Page<CustomerDto> list(String search, Pageable pageable) {
-        return (search == null || search.isBlank() ? repository.findAll(pageable)
-                : repository.findByFullNameContainingIgnoreCaseAndDeletedAtIsNull(search, pageable)).map(mapper::toDto);
+        return (search == null || search.isBlank() ? repository.findAllByDeletedAtIsNull(pageable)
+                : repository.searchActive(search.trim(), pageable)).map(mapper::toDto);
     }
     @Transactional(readOnly=true) public CustomerDto get(UUID id) { return repository.findById(id).filter(c -> c.getDeletedAt()==null)
             .map(mapper::toDto).orElseThrow(() -> BusinessException.notFound("Customer", id)); }

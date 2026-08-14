@@ -67,14 +67,16 @@ public class BookingLifecycleService {
         }
         Booking booking = locked(bookingId);
         statusPolicy.requireTransition(booking.getStatus(), BookingStatus.CHECKED_IN);
-        if (booking.getCustomerId() != null) {
-            var customer = customerRepository.findById(booking.getCustomerId())
-                    .filter(candidate -> candidate.getDeletedAt() == null)
-                    .orElseThrow(() -> BusinessException.notFound("Customer", booking.getCustomerId()));
-            if (customer.getIdentityVerificationStatus() != IdentityVerificationStatus.VERIFIED) {
-                throw new BusinessException(ErrorCode.IDENTITY_REQUIRED, org.springframework.http.HttpStatus.UNPROCESSABLE_ENTITY,
-                        "Identity verification is required before check-in");
-            }
+        if (booking.getCustomerId() == null) {
+            throw new BusinessException(ErrorCode.IDENTITY_REQUIRED, org.springframework.http.HttpStatus.UNPROCESSABLE_ENTITY,
+                    "A verified customer profile is required before check-in");
+        }
+        var customer = customerRepository.findById(booking.getCustomerId())
+                .filter(candidate -> candidate.getDeletedAt() == null)
+                .orElseThrow(() -> BusinessException.notFound("Customer", booking.getCustomerId()));
+        if (customer.getIdentityVerificationStatus() != IdentityVerificationStatus.VERIFIED) {
+            throw new BusinessException(ErrorCode.IDENTITY_REQUIRED, org.springframework.http.HttpStatus.UNPROCESSABLE_ENTITY,
+                    "Identity verification is required before check-in");
         }
         if (!checkInAt.isBefore(booking.getExpectedCheckOutAt())) {
             throw BusinessException.invalid("Check-in must be before expected check-out");

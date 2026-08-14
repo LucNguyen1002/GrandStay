@@ -74,3 +74,9 @@ services:
         value: 127.0.0.1
       - key: VNPAY_EXPIRATION
         value: 15m
+      - key: BOOKING_HOLD_ENABLED
+        value: "true"
+      - key: BOOKING_HOLD_DURATION
+        value: 15m
+      - key: BOOKING_HOLD_SCAN_DELAY
+        value: "60000"

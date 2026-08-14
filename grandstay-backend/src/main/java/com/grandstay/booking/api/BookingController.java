@@ -103,6 +103,13 @@ public class BookingController {
                 request.nationality(), request.dateOfBirth()));
     }
 
+    @PutMapping("/{id}/customer")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("hasAuthority('booking:write')")
+    public void assignCustomer(@PathVariable UUID id, @Valid @RequestBody AssignCustomerRequest request) {
+        bookingService.assignCustomer(id, request.customerId());
+    }
+
     @PostMapping("/{id}/check-in")
     @PreAuthorize("hasAuthority('booking:checkin')")
     public BookingLifecycleService.CheckInResult checkIn(@PathVariable UUID id,
@@ -137,6 +144,7 @@ public class BookingController {
                                LocalDate dateOfBirth) {}
     public record ReasonRequest(@NotBlank @Size(max=1000) String reason) {}
     public record ActualTimeRequest(Instant actualAt) {}
+    public record AssignCustomerRequest(@NotNull UUID customerId) {}
     public record AddServiceRequest(UUID bookingRoomId, @NotNull UUID serviceId,
                                     @NotNull @DecimalMin(value="0.01") java.math.BigDecimal quantity,
                                     @Size(max=500) String notes) {}
